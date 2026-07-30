@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Face = "U" | "D" | "F" | "B" | "R" | "L";
 type Scheme = Record<Face, string>;
-type BluetoothPuzzle = import("cubing/bluetooth").BluetoothPuzzle;
-type BluetoothModule = typeof import("cubing/bluetooth");
+type SmartCubeConnection = import("smartcube-web-bluetooth").SmartCubeConnection;
+type SmartCubeModule = typeof import("smartcube-web-bluetooth");
+type BluetoothSubscription = { unsubscribe(): void };
 type PLL = {
   name: string;
   cnName: string;
@@ -268,10 +269,13 @@ export default function Home() {
   const [bluetoothName, setBluetoothName] = useState("");
   const [bluetoothMove, setBluetoothMove] = useState("");
   const [bluetoothMoveCount, setBluetoothMoveCount] = useState(0);
+  const [bluetoothError, setBluetoothError] = useState("");
+  const [bluetoothProtocol, setBluetoothProtocol] = useState("");
   const startedAt = useRef(0);
   const spaceHoldTimer = useRef<number | null>(null);
-  const bluetoothModule = useRef<BluetoothModule | null>(null);
-  const bluetoothPuzzle = useRef<BluetoothPuzzle | null>(null);
+  const bluetoothModule = useRef<SmartCubeModule | null>(null);
+  const bluetoothPuzzle = useRef<SmartCubeConnection | null>(null);
+  const bluetoothSubscription = useRef<BluetoothSubscription | null>(null);
 
   useEffect(() => {
     if (!("bluetooth" in navigator)) {
@@ -279,7 +283,7 @@ export default function Home() {
       return;
     }
     let disposed = false;
-    import("cubing/bluetooth").then((module) => {
+    import("smartcube-web-bluetooth").then((module) => {
       if (disposed) return;
       bluetoothModule.current = module;
       setBluetoothStatus("idle");
@@ -288,36 +292,53 @@ export default function Home() {
     });
     return () => {
       disposed = true;
+      bluetoothSubscription.current?.unsubscribe();
       bluetoothPuzzle.current?.disconnect();
     };
   }, []);
 
   const toggleBluetooth = useCallback(async () => {
     if (bluetoothStatus === "connected") {
-      bluetoothPuzzle.current?.disconnect();
+      bluetoothSubscription.current?.unsubscribe();
+      bluetoothSubscription.current = null;
+      await bluetoothPuzzle.current?.disconnect();
       bluetoothPuzzle.current = null;
       setBluetoothStatus("idle");
       setBluetoothName("");
       setBluetoothMove("");
       setBluetoothMoveCount(0);
+      setBluetoothProtocol("");
+      setBluetoothError("");
       return;
     }
     if (!bluetoothModule.current || bluetoothStatus !== "idle") return;
     setBluetoothStatus("connecting");
+    setBluetoothError("");
     try {
-      const puzzle = await bluetoothModule.current.connectSmartPuzzle();
+      const puzzle = await bluetoothModule.current.connectSmartCube();
       bluetoothPuzzle.current = puzzle;
-      setBluetoothName(puzzle.name() || "智能魔方");
+      setBluetoothName(puzzle.deviceName || "智能魔方");
+      setBluetoothProtocol(puzzle.protocol.name);
       setBluetoothMove("");
       setBluetoothMoveCount(0);
-      puzzle.addAlgLeafListener((event) => {
-        setBluetoothMove(event.latestAlgLeaf.toString());
-        setBluetoothMoveCount((count) => count + 1);
+      bluetoothSubscription.current = puzzle.events$.subscribe((event) => {
+        if (event.type === "MOVE") {
+          setBluetoothMove(event.move);
+          setBluetoothMoveCount((count) => count + 1);
+        } else if (event.type === "DISCONNECT") {
+          bluetoothPuzzle.current = null;
+          bluetoothSubscription.current = null;
+          setBluetoothStatus("idle");
+          setBluetoothName("");
+          setBluetoothProtocol("");
+        }
       });
       setBluetoothStatus("connected");
-    } catch {
-      setBluetoothStatus("error");
-      window.setTimeout(() => setBluetoothStatus("idle"), 1800);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const cancelled = error instanceof DOMException && error.name === "NotFoundError";
+      setBluetoothError(cancelled ? "" : message);
+      setBluetoothStatus("idle");
     }
   }, [bluetoothStatus]);
 
@@ -462,12 +483,12 @@ export default function Home() {
               {bluetoothStatus === "connecting" && "选择设备…"}
               {bluetoothStatus === "connected" && bluetoothName}
               {bluetoothStatus === "unsupported" && "浏览器不支持"}
-              {bluetoothStatus === "error" && "连接失败，再试一次"}
+              {bluetoothStatus === "error" && "驱动加载失败"}
             </button>
             <small>
               {bluetoothStatus === "connected"
-                ? `已接收 ${bluetoothMoveCount} 步${bluetoothMove ? ` · ${bluetoothMove}` : ""}`
-                : "电脑请使用 Chrome / Edge"}
+                ? `${bluetoothProtocol} · ${bluetoothMoveCount} 步${bluetoothMove ? ` · ${bluetoothMove}` : ""}`
+                : bluetoothError || "实验支持魔域 WCU_MY32 / WCU_MY33"}
             </small>
           </div>
         </div>
