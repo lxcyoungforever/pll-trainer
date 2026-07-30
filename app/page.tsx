@@ -287,9 +287,11 @@ export default function Home() {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark"><i /><i /><i /><i /></span>
-          <span>PLL <b>双面观察</b></span>
-          <small>训练模式</small>
+          <span><b>六格观察法训练</b></span>
         </div>
+        <a className="guide-download" href="/six-sticker-pll-guide.pdf" download>
+          六格观察指南 <span>PDF</span><b>↓</b>
+        </a>
         <div className="stats">
           <div><span>题目</span><b>{String(stats.total).padStart(2, "0")}</b></div>
           <div><span>正确率</span><b>{stats.total ? Math.round(stats.correct / stats.total * 100) : 0}<em>%</em></b></div>

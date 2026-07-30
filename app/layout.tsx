@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PLL 双面观察训练",
-  description: "21 种 PLL 双面识别、配色与反应速度专项训练。",
+  title: "六格观察法训练",
+  description: "21 种 PLL 六格观察、配色与反应速度专项训练。",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
