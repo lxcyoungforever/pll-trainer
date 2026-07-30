@@ -494,6 +494,17 @@ export default function Home() {
         </div>
 
         <div className="quiz-area">
+          <div className="mobile-mode-control">
+            <span>观察模式</span>
+            <div className="mode-switch" role="group" aria-label="魔方观察模式">
+              <button className={dragEnabled ? "active" : ""} onClick={() => setDragEnabled(true)}>
+                初级<small>可拖动</small>
+              </button>
+              <button className={!dragEnabled ? "active" : ""} onClick={() => setDragEnabled(false)}>
+                高级<small>锁定</small>
+              </button>
+            </div>
+          </div>
           <div className="eyebrow"><span>观察角度</span> {VIEW_LABELS[question.view]} · <span>PRE-AUF</span> {question.auf}</div>
           <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} dragEnabled={dragEnabled} />
           {hasStarted ? (
