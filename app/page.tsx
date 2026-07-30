@@ -388,7 +388,9 @@ export default function Home() {
           {hasStarted ? (
             <>
               <div className={`timer ${status}`}><span>{(elapsed / 1000).toFixed(2)}</span><small>秒</small></div>
-              <p className="instruction">只观察顶层的两个侧面，判断这是哪一种 PLL</p>
+              <p className="instruction">
+                {dragEnabled ? "可拖动魔方，从不同角度观察" : "只观察顶层的两个侧面，判断这是哪一种 PLL"}
+              </p>
             </>
           ) : (
             <div className={`hold-to-start ${holdingSpace ? "holding" : ""}`}>
@@ -434,7 +436,7 @@ export default function Home() {
           </section>
         )}
       </section>
-      <footer><span>21 种 PLL 全量训练</span><i /> <span>键盘快捷键已开启</span><b>专注观察 · 建立肌肉记忆</b></footer>
+      <footer><span>21 种 PLL 全量训练</span><i /> <span>键盘快捷键已开启</span></footer>
     </main>
   );
 }
