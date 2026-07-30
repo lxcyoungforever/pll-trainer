@@ -249,6 +249,18 @@ export default function Home() {
     startedAt.current = performance.now();
   }, []);
 
+  const beginStartHold = useCallback(() => {
+    if (hasStarted || spaceHoldTimer.current !== null) return;
+    setHoldingSpace(true);
+    spaceHoldTimer.current = window.setTimeout(startTraining, 600);
+  }, [hasStarted, startTraining]);
+
+  const cancelStartHold = useCallback(() => {
+    if (spaceHoldTimer.current !== null) window.clearTimeout(spaceHoldTimer.current);
+    spaceHoldTimer.current = null;
+    setHoldingSpace(false);
+  }, []);
+
   const next = useCallback(() => {
     setQuestion((q) => makeQuestion(q.pll.name));
     setStatus("idle"); setSelected(null); setElapsed(0);
@@ -278,9 +290,8 @@ export default function Home() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.key === " " || e.code === "Space") && !hasStarted) {
         e.preventDefault();
-        if (e.repeat || spaceHoldTimer.current !== null) return;
-        setHoldingSpace(true);
-        spaceHoldTimer.current = window.setTimeout(startTraining, 600);
+        if (e.repeat) return;
+        beginStartHold();
         return;
       }
       if (["1", "2", "3", "4"].includes(e.key)) answer(question.options[Number(e.key) - 1].name);
@@ -291,9 +302,7 @@ export default function Home() {
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if ((e.key === " " || e.code === "Space") && !hasStarted && spaceHoldTimer.current !== null) {
-        window.clearTimeout(spaceHoldTimer.current);
-        spaceHoldTimer.current = null;
-        setHoldingSpace(false);
+        cancelStartHold();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -303,7 +312,7 @@ export default function Home() {
       window.removeEventListener("keyup", onKeyUp);
       if (spaceHoldTimer.current !== null) window.clearTimeout(spaceHoldTimer.current);
     };
-  }, [answer, hasStarted, next, question.options, startTraining, status]);
+  }, [answer, beginStartHold, cancelStartHold, hasStarted, next, question.options, status]);
 
   const validFrontColors = useMemo(
     () => Object.keys(COLORS).filter((color) => color !== topColor && color !== OPPOSITE[topColor]),
@@ -369,9 +378,24 @@ export default function Home() {
               </p>
             </>
           ) : (
-            <div className={`hold-to-start ${holdingSpace ? "holding" : ""}`}>
-              按住 <kbd>空格</kbd> 开始
-            </div>
+            <button
+              type="button"
+              className={`hold-to-start ${holdingSpace ? "holding" : ""}`}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                beginStartHold();
+              }}
+              onPointerUp={cancelStartHold}
+              onPointerCancel={cancelStartHold}
+              onPointerLeave={(event) => {
+                if (event.buttons === 0) cancelStartHold();
+              }}
+              aria-label="长按开始训练"
+            >
+              <span className="desktop-start-label">按住 <kbd>空格</kbd> 开始</span>
+              <span className="mobile-start-label">按住这里开始训练</span>
+            </button>
           )}
         </div>
 
