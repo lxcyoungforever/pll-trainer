@@ -29,6 +29,12 @@ main { min-height:100vh; display:flex; flex-direction:column; }
 .mode-switch button small { display:block; margin-top:2px; font-size:8px; font-weight:400; }
 .mode-switch button.active { color:#fff; background:#15181b; box-shadow:0 2px 6px #1112; }
 .control-line { display:block; height:1px; width:145px; background:var(--line); margin:25px 0; }
+.bluetooth-control > span { display:block; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:1.3px; text-transform:uppercase; }
+.bluetooth-control button { display:flex; align-items:center; gap:8px; width:145px; margin-top:9px; padding:10px 11px; border:1px solid #cfd0ca; border-radius:6px; background:#faf9f4; color:var(--ink); font-size:10px; font-weight:700; cursor:pointer; text-align:left; }
+.bluetooth-control button:disabled { cursor:not-allowed; color:#898e89; }
+.bluetooth-control button i { flex:0 0 auto; width:7px; height:7px; border-radius:50%; background:#a7aaa6; box-shadow:0 0 0 3px #a7aaa622; }
+.bluetooth-control button.is-connected { color:#12613d; border-color:#70af91; background:#e9f6ef; }.bluetooth-control button.is-connected i { background:#18a05e; box-shadow:0 0 0 3px #18a05e22; }
+.bluetooth-control small { display:block; width:145px; margin-top:7px; color:#858a85; font-size:8px; line-height:1.4; }
 .data-badge { display:flex; flex-direction:column; gap:5px; width:150px; }.data-badge span { color:var(--muted); font-size:9px; font-weight:700; letter-spacing:1.3px; text-transform:uppercase; }.data-badge strong { font-size:13px; }.data-badge small { color:#858a85; font-size:9px; }
 .quiz-area { position:relative; text-align:center; min-width:0; }
 .eyebrow { color:#7b7f7b; font-size:10px; letter-spacing:1px; text-transform:uppercase; }.eyebrow span { font-weight:800; color:#252825; }
@@ -84,6 +90,7 @@ footer i { width:3px; height:3px; background:#aaa; border-radius:50%; }
   .workspace { display:flex; flex-direction:column; padding:96px 20px 22px; gap:20px; }
   .controls { width:100%; order:2; border-right:0; border-top:1px solid var(--line); padding:16px 0 0; display:grid; grid-template-columns:1fr 1fr; gap:12px; }.controls select,.mode-switch { width:100%; }.control-line { display:none; }.data-badge { width:auto; }
   .mode-control { grid-column:1 / -1; }
+  .bluetooth-control { display:none; }
   .quiz-area { order:1; width:100%; }.cube-stage { width:340px; height:290px; margin-top:-6px; }.twisty-host { height:260px; }
   .hold-to-start { min-width:180px; min-height:46px; margin-top:5px; border:1px solid #cfd0ca; border-radius:999px; background:#faf9f4; color:#343936; font-size:12px; font-weight:700; transition:.6s linear; }
   .hold-to-start .desktop-start-label { display:none; }.hold-to-start .mobile-start-label { display:inline; }

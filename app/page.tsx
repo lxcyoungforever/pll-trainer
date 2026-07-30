@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Face = "U" | "D" | "F" | "B" | "R" | "L";
 type Scheme = Record<Face, string>;
+type BluetoothPuzzle = import("cubing/bluetooth").BluetoothPuzzle;
+type BluetoothModule = typeof import("cubing/bluetooth");
 type PLL = {
   name: string;
   cnName: string;
@@ -262,8 +264,62 @@ export default function Home() {
   const [selected, setSelected] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [stats, setStats] = useState({ total: 0, correct: 0 });
+  const [bluetoothStatus, setBluetoothStatus] = useState<"checking" | "idle" | "connecting" | "connected" | "unsupported" | "error">("checking");
+  const [bluetoothName, setBluetoothName] = useState("");
+  const [bluetoothMove, setBluetoothMove] = useState("");
+  const [bluetoothMoveCount, setBluetoothMoveCount] = useState(0);
   const startedAt = useRef(0);
   const spaceHoldTimer = useRef<number | null>(null);
+  const bluetoothModule = useRef<BluetoothModule | null>(null);
+  const bluetoothPuzzle = useRef<BluetoothPuzzle | null>(null);
+
+  useEffect(() => {
+    if (!("bluetooth" in navigator)) {
+      setBluetoothStatus("unsupported");
+      return;
+    }
+    let disposed = false;
+    import("cubing/bluetooth").then((module) => {
+      if (disposed) return;
+      bluetoothModule.current = module;
+      setBluetoothStatus("idle");
+    }).catch(() => {
+      if (!disposed) setBluetoothStatus("error");
+    });
+    return () => {
+      disposed = true;
+      bluetoothPuzzle.current?.disconnect();
+    };
+  }, []);
+
+  const toggleBluetooth = useCallback(async () => {
+    if (bluetoothStatus === "connected") {
+      bluetoothPuzzle.current?.disconnect();
+      bluetoothPuzzle.current = null;
+      setBluetoothStatus("idle");
+      setBluetoothName("");
+      setBluetoothMove("");
+      setBluetoothMoveCount(0);
+      return;
+    }
+    if (!bluetoothModule.current || bluetoothStatus !== "idle") return;
+    setBluetoothStatus("connecting");
+    try {
+      const puzzle = await bluetoothModule.current.connectSmartPuzzle();
+      bluetoothPuzzle.current = puzzle;
+      setBluetoothName(puzzle.name() || "智能魔方");
+      setBluetoothMove("");
+      setBluetoothMoveCount(0);
+      puzzle.addAlgLeafListener((event) => {
+        setBluetoothMove(event.latestAlgLeaf.toString());
+        setBluetoothMoveCount((count) => count + 1);
+      });
+      setBluetoothStatus("connected");
+    } catch {
+      setBluetoothStatus("error");
+      window.setTimeout(() => setBluetoothStatus("idle"), 1800);
+    }
+  }, [bluetoothStatus]);
 
   const startTraining = useCallback(() => {
     if (spaceHoldTimer.current !== null) window.clearTimeout(spaceHoldTimer.current);
@@ -391,6 +447,29 @@ export default function Home() {
               {validFrontColors.map((key) => <option key={key} value={key}>{COLORS[key].label}</option>)}
             </select>
           </label>
+          <span className="control-line" />
+          <div className="bluetooth-control">
+            <span>智能魔方</span>
+            <button
+              type="button"
+              className={bluetoothStatus === "connected" ? "is-connected" : ""}
+              onClick={toggleBluetooth}
+              disabled={bluetoothStatus === "checking" || bluetoothStatus === "connecting" || bluetoothStatus === "unsupported"}
+            >
+              <i />
+              {bluetoothStatus === "checking" && "正在准备"}
+              {bluetoothStatus === "idle" && "连接蓝牙魔方"}
+              {bluetoothStatus === "connecting" && "选择设备…"}
+              {bluetoothStatus === "connected" && bluetoothName}
+              {bluetoothStatus === "unsupported" && "浏览器不支持"}
+              {bluetoothStatus === "error" && "连接失败，再试一次"}
+            </button>
+            <small>
+              {bluetoothStatus === "connected"
+                ? `已接收 ${bluetoothMoveCount} 步${bluetoothMove ? ` · ${bluetoothMove}` : ""}`
+                : "电脑请使用 Chrome / Edge"}
+            </small>
+          </div>
         </div>
 
         <div className="quiz-area">
