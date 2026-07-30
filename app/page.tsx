@@ -401,7 +401,11 @@ export default function Home() {
 
         {hasStarted && (
           <div className="answer-panel">
-              <div className="answer-heading"><span>你的答案</span><small>按 1–4 快速作答</small></div>
+              <div className="answer-heading">
+                <span>你的答案</span>
+                <small>按 1–4 快速作答</small>
+                {status !== "idle" && <button className="mobile-next" onClick={next}>下一题 <b>→</b></button>}
+              </div>
               <div className="answers">
                 {question.options.map((option, i) => {
                   const isCorrect = option.name === question.pll.name;

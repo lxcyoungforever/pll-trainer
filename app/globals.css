@@ -50,6 +50,7 @@ main { min-height:100vh; display:flex; flex-direction:column; }
 .answer-panel { position:relative; }
 .answer-heading { display:flex; align-items:end; justify-content:space-between; border-bottom:2px solid var(--ink); padding:0 2px 12px; }
 .answer-heading span { font-size:13px; font-weight:800; letter-spacing:.5px; }.answer-heading small { color:var(--muted); font-size:10px; }
+.mobile-next { display:none; }
 .answers { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
 .answers button { height:92px; text-align:left; border:1px solid #d4d5cf; background:#faf9f4; border-radius:7px; padding:14px; cursor:pointer; position:relative; transition:.18s; }
 .answers button:hover { border-color:#15181b; transform:translateY(-2px); box-shadow:0 8px 20px #1111; }
@@ -85,7 +86,10 @@ footer i { width:3px; height:3px; background:#aaa; border-radius:50%; }
   .hold-to-start { min-width:180px; min-height:46px; margin-top:5px; border:1px solid #cfd0ca; border-radius:999px; background:#faf9f4; color:#343936; font-size:12px; font-weight:700; transition:.6s linear; }
   .hold-to-start .desktop-start-label { display:none; }.hold-to-start .mobile-start-label { display:inline; }
   .hold-to-start.holding { color:#fff; border-color:#176b4a; background:linear-gradient(90deg,#176b4a,#23855f); box-shadow:0 0 0 6px #176b4a20; transform:scale(.98); }
-  .answer-panel { order:3; width:100%; }.answers button { height:80px; }.answers strong { font-size:23px; }
-  .observation-guide { order:4; padding:17px; }.guide-heading { align-items:flex-start; }.guide-heading h2 { font-size:15px; }.auf-grid { grid-template-columns:1fr; }.auf-grid article { min-height:auto; }.guide-heading button { padding:9px 10px; }
+  .answer-panel { order:3; width:100%; }.answer-heading small { display:none; }
+  .answer-heading .mobile-next { display:inline-flex; align-items:center; gap:8px; border:0; border-radius:999px; padding:8px 13px; background:var(--ink); color:#fff; font-size:11px; font-weight:700; cursor:pointer; }.mobile-next b { color:#8fd0b3; font-size:14px; }
+  .answers button { height:80px; }.answers kbd { display:none; }.answers strong { font-size:23px; }
+  .observation-guide { order:4; padding:17px; }.guide-heading { align-items:flex-start; }.guide-heading h2 { font-size:15px; }.auf-grid { grid-template-columns:1fr; }.auf-grid article { min-height:auto; }.guide-heading button { display:none; }
+  .success-toast span { display:none; }
   footer { padding:0 20px; }
 }
