@@ -1,17 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Face = "U" | "D" | "F" | "B" | "R" | "L";
 type Scheme = Record<Face, string>;
 type PLL = {
   name: string;
+  alg: string;
   hint: string;
   family: string;
   similar: string[];
   observations: string[];
-  // Twelve top-layer positions viewed clockwise: 4 corners + 8 edge stickers.
-  signature: number[];
 };
 
 const COLORS: Record<string, { label: string; hex: string; ink: string }> = {
@@ -54,28 +53,19 @@ export function getCubeScheme(u: string, f: string): Scheme | null {
   };
 }
 
-const sig = (seed: number, family: string) =>
-  Array.from({ length: 12 }, (_, i) =>
-    family === "Edges" ? (i % 3 === 1 ? (i + seed) % 4 : Math.floor(i / 3) % 4)
-    : family === "Corners" ? (i % 3 === 0 ? (i / 3 + seed) % 4 : Math.floor(i / 3) % 4)
-    : (i * (seed % 3 + 1) + seed + Math.floor(i / 3)) % 4
-  );
-
 const SIMILAR: Record<string, string[]> = {
-  Aa: ["Ab", "V", "F"], Ab: ["Aa", "V", "F"], Ad: ["Ae", "V", "Y"], Ae: ["Ad", "V", "Y"],
-  Ea: ["Na", "Nb", "V"], F: ["T", "Jb", "Aa"], Ga: ["Gb", "Gc", "Gd"], Gb: ["Ga", "Gd", "Gc"],
+  Aa: ["Ab", "V", "F"], Ab: ["Aa", "V", "F"],
+  E: ["Na", "Nb", "V"], F: ["T", "Jb", "Aa"], Ga: ["Gb", "Gc", "Gd"], Gb: ["Ga", "Gd", "Gc"],
   Gc: ["Gd", "Ga", "Gb"], Gd: ["Gc", "Gb", "Ga"], H: ["Z", "Ea", "Na"], Ja: ["Jb", "T", "Ra"],
   Jb: ["Ja", "T", "Rb"], Na: ["Nb", "V", "Y"], Nb: ["Na", "V", "Y"], Ra: ["Rb", "Ja", "Ga"],
   Rb: ["Ra", "Jb", "Gb"], T: ["Jb", "F", "Y"], V: ["Y", "Aa", "Ab"], Y: ["V", "T", "Na"],
-  Z: ["H", "Ea", "T"],
+  Ua: ["Ub", "Z", "H"], Ub: ["Ua", "Z", "H"], Z: ["H", "Ua", "Ub"],
 };
 
 const OBSERVATIONS: Record<string, [string, string, string, string]> = {
   Aa: ["正面无车灯；右面可见同色角块。先找右侧的角块色条。", "正面出现车灯；右面三格不同色。车灯在左手侧时判 Aa。", "正面同色角块；右面无车灯，与 Ab 的镜像方向相反。", "正面三格不同色；右面出现车灯。车灯在右手侧时仍为 Aa。"],
   Ab: ["正面无车灯；右面出现车灯，方向与 Aa 镜像。", "正面同色角块；右面三格不同色。注意角循环方向。", "正面出现车灯；右面无车灯，车灯落在左侧观察面。", "正面三格不同色；右面同色角块。与 Aa 对照判断。"],
-  Ad: ["正面看一组斜向角块；右面没有完整车灯。", "正面同色角块靠右；右面呈三色分散。", "正面角块斜向交换；右侧出现相反方向色块。", "正面三色分散；右面同色角块靠左。"],
-  Ae: ["正面斜向角块与 Ad 镜像；右面无完整车灯。", "正面三色分散；右面同色角块靠右。", "正面角交换方向与 Ad 相反；右面色块反向。", "正面同色角块靠左；右面呈三色分散。"],
-  Ea: ["前、右两面都没有车灯或完整 1×3 色条。", "两面角块均不成对；重点确认四角同时错位。", "仍无车灯，正反观察完全对称。", "两面均为散色；排除只有一组角交换的 A/V。"],
+  E: ["前、右两面都没有车灯或完整 1×3 色条。", "两面角块均不成对；重点确认四角同时错位。", "仍无车灯，正反观察完全对称。", "两面均为散色；排除只有一组角交换的 A/V。"],
   F: ["正面有 1×2 小色条；右面角块形成车灯线索。", "正面车灯；右面出现偏置 1×2 色条。", "正面小色条与首方向相对；右面无完整色条。", "正面散色；右面同时看到色条和相邻角块。"],
   Ga: ["左侧车灯配右面短色条；先锁定车灯方向。", "正面短色条在左；右面三色交错。", "车灯移到右侧面；正面只剩偏置色块。", "正面三色交错；右面短色条靠右。"],
   Gb: ["右侧车灯配左面短色条，是 Ga 的镜像。", "正面三色交错；右面短色条在左。", "车灯移到左侧面；正面只剩偏置色块。", "正面短色条靠右；右面三色交错。"],
@@ -91,24 +81,35 @@ const OBSERVATIONS: Record<string, [string, string, string, string]> = {
   T: ["一面车灯，邻面可见规整 1×2 色条。", "正面短色条；右面三格关系高度对称。", "正面出现完整色条；右面无车灯。", "正面无车灯；右面短色条指向车灯所在侧。"],
   V: ["一面有车灯；邻面两角呈对角色，不形成连续色条。", "正面散色；右面有一组偏置角块。", "车灯出现在相对侧；两边块仍呈对角关系。", "正面偏置角块；右面散色。用对角线索排除 A。"],
   Y: ["一面有车灯；邻面边块呈对角交换线索。", "正面 1×2 关系不连续；右面为散色。", "车灯移到相对侧；仍能看到对角边交换。", "正面散色；右面断开的 1×2 关系。用边块排除 V。"],
+  Ua: ["三面已有完整色条；剩余一面的边块向顺时针方向循环。", "从箭头方向看，边块循环为左移；角块全部归位。", "完整色条换到对面；只观察边块即可排除 A/V。", "边块循环方向与 Ub 相反；确认没有角块交换。"],
+  Ub: ["三面已有完整色条；剩余一面的边块向逆时针方向循环。", "从箭头方向看，边块循环为右移；角块全部归位。", "完整色条换到对面；只观察边块即可排除 A/V。", "边块循环方向与 Ua 相反；确认没有角块交换。"],
   Z: ["前、右两面各有相邻 1×2 色条，方向互相垂直。", "旋转后仍能同时看到两组相邻边交换。", "正面色条换到另一侧；结构不像 H 那样中心对称。", "右面色条换向；两面始终各保留一组相邻色。"],
 };
 
 export const PLLS: PLL[] = [
-  ["Aa", "左侧车灯 · 右前角逆时针循环", "Corners"], ["Ab", "右侧车灯 · 左前角顺时针循环", "Corners"],
-  ["Ad", "对角块循环 · 左侧同色块", "Corners"], ["Ae", "对角块循环 · 右侧同色块", "Corners"],
-  ["Ea", "四角对换 · 四面无完整色块", "Corners"], ["F", "前侧 1×2 色条 · 邻面车灯", "Mixed"],
-  ["Ga", "左车灯 + 右侧 1×2 色条", "Mixed"], ["Gb", "右车灯 + 左侧 1×2 色条", "Mixed"],
-  ["Gc", "左侧色条 · 后侧车灯", "Mixed"], ["Gd", "右侧色条 · 后侧车灯", "Mixed"],
-  ["H", "四边对换 · 四面都是对称色条", "Edges"], ["Ja", "左侧车灯 + 前侧色条", "Mixed"],
-  ["Jb", "右侧车灯 + 前侧色条", "Mixed"], ["Na", "两组对角 1×2 色条", "Mixed"],
-  ["Nb", "两组反向对角 1×2 色条", "Mixed"], ["Ra", "左车灯 · 右侧块突出", "Mixed"],
-  ["Rb", "右车灯 · 左侧块突出", "Mixed"], ["T", "一组车灯 + 对面完整色条", "Mixed"],
-  ["V", "一侧车灯 · 对角两色块", "Mixed"], ["Y", "一组车灯 · 对角边块交换", "Mixed"],
-  ["Z", "相邻两组边交换 · 两面同色条", "Edges"],
-].map(([name, hint, family], index) => ({
-  name, hint, family, similar: SIMILAR[name] ?? [], observations: OBSERVATIONS[name],
-  signature: sig(index + 1, family),
+  ["Aa", "x R' U R' D2 R U' R' D2 R2 x'", "左侧车灯 · 三角循环", "Corners"],
+  ["Ab", "x R2 D2 R U R' D2 R U' R x'", "右侧车灯 · 三角循环", "Corners"],
+  ["E", "x' R U' R' D R U R' D' R U R' D R U' R' D' x", "四角对换 · 四面无完整色块", "Corners"],
+  ["F", "R' U' F' R U R' U' R' F R2 U' R' U' R U R' U R", "前侧 1×2 色条 · 邻面车灯", "Mixed"],
+  ["Ga", "R2 U R' U R' U' R U' R2 D U' R' U R D'", "左车灯 + 右侧 1×2 色条", "Mixed"],
+  ["Gb", "R' U' R U D' R2 U R' U R U' R U' R2 D", "右车灯 + 左侧 1×2 色条", "Mixed"],
+  ["Gc", "R2 U' R U' R U R' U R2 D' U R U' R' D", "左侧色条 · 后侧车灯", "Mixed"],
+  ["Gd", "R U R' U' D R2 U' R U' R' U R' U R2 D'", "右侧色条 · 后侧车灯", "Mixed"],
+  ["H", "M2 U M2 U2 M2 U M2", "四边对换 · 四面都是对称色条", "Edges"],
+  ["Ja", "x R2 F R F' R U2 r' U r U2 x'", "左侧车灯 + 前侧色条", "Mixed"],
+  ["Jb", "R U R' F' R U R' U' R' F R2 U' R' U'", "右侧车灯 + 前侧色条", "Mixed"],
+  ["Na", "R U R' U R U R' F' R U R' U' R' F R2 U' R' U2 R U' R'", "两组对角 1×2 色条", "Mixed"],
+  ["Nb", "R' U R U' R' F' U' F R U R' F R' F' R U' R", "两组反向对角 1×2 色条", "Mixed"],
+  ["Ra", "R U' R' U' R U R D R' U' R D' R' U2 R'", "左车灯 · 右侧块突出", "Mixed"],
+  ["Rb", "R' U2 R U2 R' F R U R' U' R' F' R2", "右车灯 · 左侧块突出", "Mixed"],
+  ["T", "R U R' U' R' F R2 U' R' U' R U R' F'", "一组车灯 + 对面完整色条", "Mixed"],
+  ["Ua", "M2 U M U2 M' U M2", "三边循环 · 顺时针方向", "Edges"],
+  ["Ub", "M2 U' M U2 M' U' M2", "三边循环 · 逆时针方向", "Edges"],
+  ["V", "R' U R' U' R D' R' D R' U D' R2 U' R2 D R2", "一侧车灯 · 对角两色块", "Mixed"],
+  ["Y", "F R U' R' U' R U R' F' R U R' U' R' F R F'", "一组车灯 · 对角边块交换", "Mixed"],
+  ["Z", "M2 U M2 U M' U2 M2 U2 M' U2", "相邻两组边交换 · 两面同色条", "Edges"],
+].map(([name, alg, hint, family]) => ({
+  name, alg, hint, family, similar: SIMILAR[name] ?? [], observations: OBSERVATIONS[name],
 }));
 
 const AUFS = ["None", "U", "U′", "U2"];
@@ -142,41 +143,45 @@ const INITIAL_QUESTION = {
   id: 0,
 };
 
-function Sticker({ color }: { color: string }) {
-  return <span className="sticker" style={{ background: color }} />;
-}
+function InteractiveCube({ pll, auf, view }: { pll: PLL; auf: string; view: number }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let disposed = false;
+    let player: HTMLElement | null = null;
+    const inverseAuf = ({ None: "", U: "U'", "U′": "U", U2: "U2" } as Record<string, string>)[auf];
+    import("cubing/twisty").then(({ TwistyPlayer }) => {
+      if (disposed || !hostRef.current) return;
+      player = new TwistyPlayer({
+        puzzle: "3x3x3",
+        alg: `${inverseAuf} ${pll.alg}`.trim(),
+        experimentalSetupAnchor: "end",
+        background: "none",
+        controlPanel: "none",
+        hintFacelets: "none",
+        experimentalDragInput: "auto",
+        cameraLatitude: 24,
+        cameraLongitude: -32 + view * 90,
+        cameraDistance: 5.8,
+      });
+      player.className = "twisty-cube";
+      player.setAttribute("aria-label", `${pll.name} PLL 可旋转三维魔方`);
+      hostRef.current.replaceChildren(player);
+    });
+    return () => {
+      disposed = true;
+      player?.remove();
+    };
+  }, [auf, pll.alg, pll.name, view]);
 
-function CubeFace({ className, colors }: { className: string; colors: string[] }) {
   return (
-    <div className={`cube-face ${className}`}>
-      {colors.map((color, i) => <Sticker key={i} color={color} />)}
-    </div>
-  );
-}
-
-function Cube({ scheme, pll, auf, view }: { scheme: Scheme; pll: PLL; auf: string; view: number }) {
-  const shift = ({ None: 0, U: 3, "U′": 9, U2: 6 } as Record<string, number>)[auf];
-  const rotated = Array.from({ length: 12 }, (_, i) => pll.signature[(i + shift + view * 3) % 12]);
-  const sides = [scheme.F, scheme.R, scheme.B, scheme.L].map((face) => COLORS[face].hex);
-  const top = COLORS[scheme.U].hex;
-  const frontTop = rotated.slice(0, 3).map((n) => sides[n]);
-  const rightTop = rotated.slice(3, 6).map((n) => sides[n]);
-  const face = (topRow: string[], base: string) => [...topRow, ...Array(6).fill(base)];
-  return (
-    <div className="cube-stage" aria-label={`${pll.name} PLL 魔方状态`}>
-      <div className="cube-shadow" />
-      <div className="cube">
-        <CubeFace className="face-top" colors={Array(9).fill(top)} />
-        <CubeFace className="face-front" colors={face(frontTop, COLORS[scheme.F].hex)} />
-        <CubeFace className="face-right" colors={face(rightTop, COLORS[scheme.R].hex)} />
-      </div>
+    <div className="cube-stage">
+      <div ref={hostRef} className="twisty-host" />
+      <div className="drag-tip"><span>↔</span> 拖动魔方查看其他面</div>
     </div>
   );
 }
 
 export default function Home() {
-  const [u, setU] = useState("yellow");
-  const [f, setF] = useState("green");
   const [question, setQuestion] = useState(INITIAL_QUESTION);
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
   const [selected, setSelected] = useState<string | null>(null);
@@ -184,7 +189,6 @@ export default function Home() {
   const [stats, setStats] = useState({ total: 0, correct: 0, times: [] as number[] });
   const startedAt = useRef(0);
   const nextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scheme = getCubeScheme(u, f)!;
 
   const next = useCallback(() => {
     setQuestion((q) => makeQuestion(q.pll.name));
@@ -226,9 +230,6 @@ export default function Home() {
   }, [answer, next, question.options, status]);
 
   const avg = stats.times.length ? stats.times.reduce((a, b) => a + b, 0) / stats.times.length : 0;
-  const validFronts = useMemo(() => Object.keys(COLORS).filter((c) => c !== u && c !== OPPOSITE[u]), [u]);
-  useEffect(() => { if (!validFronts.includes(f)) setF(validFronts[0]); }, [f, validFronts]);
-
   return (
     <main>
       <header className="topbar">
@@ -246,23 +247,15 @@ export default function Home() {
 
       <section className="workspace">
         <div className="controls">
-          <label>顶面 U
-            <select value={u} onChange={(e) => setU(e.target.value)}>
-              {Object.entries(COLORS).map(([key, v]) => <option key={key} value={key}>{v.label}</option>)}
-            </select>
-          </label>
+          <div className="data-badge"><span>公式来源</span><strong>标准 21 PLL</strong><small>真实公式反推题面</small></div>
           <span className="control-line" />
-          <label>前面 F
-            <select value={f} onChange={(e) => setF(e.target.value)}>
-              {validFronts.map((key) => <option key={key} value={key}>{COLORS[key].label}</option>)}
-            </select>
-          </label>
-          <div className="legend"><span /> 前两层已复原</div>
+          <div className="data-badge"><span>交互方式</span><strong>鼠标 / 手指拖动</strong><small>可观察全部六面</small></div>
+          <div className="legend"><span /> F2L 保持复原</div>
         </div>
 
         <div className="quiz-area">
           <div className="eyebrow"><span>观察角度</span> {VIEW_LABELS[question.view]} · <span>PRE-AUF</span> {question.auf}</div>
-          <Cube scheme={scheme} pll={question.pll} auf={question.auf} view={question.view} />
+          <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} />
           <div className={`timer ${status}`}><span>{(elapsed / 1000).toFixed(2)}</span><small>秒</small></div>
           <p className="instruction">只观察顶层的两个侧面，判断这是哪一种 PLL</p>
         </div>
