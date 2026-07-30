@@ -413,7 +413,9 @@ export default function Home() {
                     : status === "wrong" && selected === option.name ? "is-wrong" : "";
                   return (
                     <button key={option.name} className={state} onClick={() => answer(option.name)}>
-                      <kbd>{i + 1}</kbd><strong>{option.name}</strong><span>PLL</span>
+                      <kbd>{i + 1}</kbd>
+                      <span className="option-name"><strong>{option.name}</strong><em>PLL</em></span>
+                      <small className="option-hint">{option.hint}</small>
                       <i>{state === "is-correct" ? "✓" : state === "is-wrong" ? "×" : "→"}</i>
                     </button>
                   );
