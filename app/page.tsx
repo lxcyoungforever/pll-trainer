@@ -197,8 +197,8 @@ const INITIAL_QUESTION = {
   id: 0,
 };
 
-function InteractiveCube({ pll, auf, view, topColor, frontColor }: {
-  pll: PLL; auf: string; view: number; topColor: string; frontColor: string;
+function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled }: {
+  pll: PLL; auf: string; view: number; topColor: string; frontColor: string; dragEnabled: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -218,7 +218,7 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor }: {
         background: "none",
         controlPanel: "none",
         hintFacelets: "none",
-        experimentalDragInput: "auto",
+        experimentalDragInput: dragEnabled ? "auto" : "none",
         cameraLatitude: 24,
         cameraLongitude: -32 + view * 90,
         cameraDistance: 5.8,
@@ -233,12 +233,15 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor }: {
       disposed = true;
       player?.remove();
     };
-  }, [auf, frontColor, pll.alg, pll.name, topColor, view]);
+  }, [auf, dragEnabled, frontColor, pll.alg, pll.name, topColor, view]);
 
   return (
     <div className="cube-stage">
-      <div ref={hostRef} className="twisty-host" />
-      <div className="drag-tip"><span>↔</span> 拖动魔方查看其他面</div>
+      <div ref={hostRef} className={`twisty-host ${dragEnabled ? "" : "is-locked"}`} />
+      <div className={`drag-tip ${dragEnabled ? "" : "locked"}`}>
+        <span>{dragEnabled ? "↔" : "●"}</span>
+        {dragEnabled ? "拖动魔方查看其他面" : "高级模式 · 视角已锁定"}
+      </div>
     </div>
   );
 }
@@ -246,6 +249,7 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor }: {
 export default function Home() {
   const [topColor, setTopColor] = useState("yellow");
   const [frontColor, setFrontColor] = useState("green");
+  const [dragEnabled, setDragEnabled] = useState(true);
   const [question, setQuestion] = useState(INITIAL_QUESTION);
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
   const [selected, setSelected] = useState<string | null>(null);
@@ -324,6 +328,18 @@ export default function Home() {
 
       <section className="workspace">
         <div className="controls">
+          <div className="mode-control">
+            <span>观察模式</span>
+            <div className="mode-switch" role="group" aria-label="魔方观察模式">
+              <button className={dragEnabled ? "active" : ""} onClick={() => setDragEnabled(true)}>
+                初级<small>可拖动</small>
+              </button>
+              <button className={!dragEnabled ? "active" : ""} onClick={() => setDragEnabled(false)}>
+                高级<small>锁定</small>
+              </button>
+            </div>
+          </div>
+          <span className="control-line" />
           <label>顶面颜色
             <select value={topColor} onChange={(e) => setTopColor(e.target.value)}>
               {Object.entries(COLORS).map(([key, color]) => <option key={key} value={key}>{color.label}</option>)}
@@ -339,7 +355,7 @@ export default function Home() {
 
         <div className="quiz-area">
           <div className="eyebrow"><span>观察角度</span> {VIEW_LABELS[question.view]} · <span>PRE-AUF</span> {question.auf}</div>
-          <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} />
+          <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} dragEnabled={dragEnabled} />
           <div className={`timer ${status}`}><span>{(elapsed / 1000).toFixed(2)}</span><small>秒</small></div>
           <p className="instruction">只观察顶层的两个侧面，判断这是哪一种 PLL</p>
         </div>
