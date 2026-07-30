@@ -188,7 +188,6 @@ export default function Home() {
   const [elapsed, setElapsed] = useState(0);
   const [stats, setStats] = useState({ total: 0, correct: 0, times: [] as number[] });
   const startedAt = useRef(0);
-  const nextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const next = useCallback(() => {
     setQuestion((q) => makeQuestion(q.pll.name));
@@ -217,16 +216,18 @@ export default function Home() {
       total: s.total + 1, correct: s.correct + (correct ? 1 : 0),
       times: correct ? [...s.times, time] : s.times,
     }));
-    if (correct) nextTimer.current = setTimeout(next, 500);
   }, [next, question.pll.name, status]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (["1", "2", "3", "4"].includes(e.key)) answer(question.options[Number(e.key) - 1].name);
-      if (e.key === "Enter" && status === "wrong") next();
+      if ((e.key === " " || e.code === "Space") && status !== "idle") {
+        e.preventDefault();
+        next();
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("keydown", onKey); if (nextTimer.current) clearTimeout(nextTimer.current); };
+    return () => window.removeEventListener("keydown", onKey);
   }, [answer, next, question.options, status]);
 
   const avg = stats.times.length ? stats.times.reduce((a, b) => a + b, 0) / stats.times.length : 0;
@@ -275,13 +276,13 @@ export default function Home() {
               );
             })}
           </div>
-          {status === "correct" && <div className="success-toast">识别正确 · {(elapsed / 1000).toFixed(2)}s</div>}
+          {status === "correct" && <div className="success-toast">识别正确 · {(elapsed / 1000).toFixed(2)}s <span>按空格进入下一题</span></div>}
         </div>
         {status === "wrong" && (
           <section className="observation-guide">
             <div className="guide-heading">
               <div><span>识别复盘</span><h2>{question.pll.name} PLL · 四方向观察方法</h2><p>{question.pll.hint}</p></div>
-              <button onClick={next}>下一题 <kbd>Enter</kbd></button>
+              <button onClick={next}>下一题 <kbd>Space</kbd></button>
             </div>
             <div className="auf-grid">
               {AUFS.map((auf, i) => (
