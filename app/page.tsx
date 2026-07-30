@@ -274,6 +274,7 @@ export default function Home() {
   const [bluetoothMoveCount, setBluetoothMoveCount] = useState(0);
   const [bluetoothError, setBluetoothError] = useState("");
   const [bluetoothProtocol, setBluetoothProtocol] = useState("");
+  const [bluetoothStage, setBluetoothStage] = useState("");
   const startedAt = useRef(0);
   const spaceHoldTimer = useRef<number | null>(null);
   const bluetoothModule = useRef<SmartCubeModule | null>(null);
@@ -312,13 +313,26 @@ export default function Home() {
       setBluetoothMoveCount(0);
       setBluetoothProtocol("");
       setBluetoothError("");
+      setBluetoothStage("");
       return;
     }
     if (!bluetoothModule.current || bluetoothStatus !== "idle") return;
     setBluetoothStatus("connecting");
     setBluetoothError("");
+    setBluetoothStage("选择设备");
     try {
-      const puzzle = await bluetoothModule.current.connectSmartCube();
+      const puzzle = await bluetoothModule.current.connectSmartCube({
+        enableAddressSearch: true,
+        onStatus: (message) => {
+          const translated = message
+            .replace("Select your cube…", "选择设备")
+            .replace("Reading advertisements…", "读取设备信息")
+            .replace("Connecting…", "连接 GATT")
+            .replace("Verifying connection…", "验证魔方数据")
+            .replace("Testing address", "校验加密地址");
+          setBluetoothStage(translated);
+        },
+      });
       bluetoothPuzzle.current = puzzle;
       setBluetoothName(puzzle.deviceName || "智能魔方");
       setBluetoothProtocol(puzzle.protocol.name);
@@ -337,10 +351,12 @@ export default function Home() {
         }
       });
       setBluetoothStatus("connected");
+      setBluetoothStage("");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const cancelled = error instanceof DOMException && error.name === "NotFoundError";
       setBluetoothError(cancelled ? "" : message);
+      setBluetoothStage("");
       setBluetoothStatus("idle");
     }
   }, [bluetoothStatus]);
@@ -483,7 +499,7 @@ export default function Home() {
               <i />
               {bluetoothStatus === "checking" && "正在准备"}
               {bluetoothStatus === "idle" && "连接蓝牙魔方"}
-              {bluetoothStatus === "connecting" && "选择设备…"}
+              {bluetoothStatus === "connecting" && (bluetoothStage || "选择设备…")}
               {bluetoothStatus === "connected" && bluetoothName}
               {bluetoothStatus === "unsupported" && "浏览器不支持"}
               {bluetoothStatus === "error" && "驱动加载失败"}
@@ -534,13 +550,14 @@ export default function Home() {
               <b>
                 {bluetoothStatus === "checking" && "准备中"}
                 {bluetoothStatus === "idle" && "连接魔域"}
-                {bluetoothStatus === "connecting" && "选择设备"}
+                {bluetoothStatus === "connecting" && (bluetoothStage || "选择设备")}
                 {bluetoothStatus === "connected" && `${bluetoothProtocol} · ${bluetoothMoveCount}步`}
                 {bluetoothStatus === "unsupported" && "不支持"}
                 {bluetoothStatus === "error" && "加载失败"}
               </b>
             </button>
           </div>
+          {bluetoothError && <small className="mobile-bluetooth-error">{bluetoothError}</small>}
           <div className="eyebrow"><span>观察角度</span> {VIEW_LABELS[question.view]} · <span>PRE-AUF</span> {question.auf}</div>
           <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} dragEnabled={dragEnabled} />
           {hasStarted ? (
