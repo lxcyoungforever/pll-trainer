@@ -150,6 +150,27 @@ const VIEW_LABELS = ["正面", "右转 90°", "背面", "左转 90°"];
 
 function randomItem<T>(items: T[]) { return items[Math.floor(Math.random() * items.length)]; }
 
+function exportTrainingSet() {
+  const headers = ["PLL", "分类", "核心特征", "相近题型", "无 AUF", "U", "U′", "U2", "标准公式"];
+  const escapeCell = (value: string) => `"${value.replaceAll('"', '""')}"`;
+  const rows = PLLS.map((pll) => [
+    pll.name,
+    pll.family,
+    pll.hint,
+    pll.similar.join(" / "),
+    ...pll.observations,
+    pll.alg,
+  ]);
+  const csv = [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "PLL训练合集.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function makeQuestion(previous?: string) {
   const pool = PLLS.filter((p) => p.name !== previous);
   const pll = randomItem(pool);
@@ -229,7 +250,7 @@ export default function Home() {
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
   const [selected, setSelected] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  const [stats, setStats] = useState({ total: 0, correct: 0, times: [] as number[] });
+  const [stats, setStats] = useState({ total: 0, correct: 0 });
   const startedAt = useRef(0);
 
   const next = useCallback(() => {
@@ -257,7 +278,6 @@ export default function Home() {
     setElapsed(time); setSelected(name); setStatus(correct ? "correct" : "wrong");
     setStats((s) => ({
       total: s.total + 1, correct: s.correct + (correct ? 1 : 0),
-      times: correct ? [...s.times, time] : s.times,
     }));
   }, [next, question.pll.name, status]);
 
@@ -273,7 +293,6 @@ export default function Home() {
     return () => window.removeEventListener("keydown", onKey);
   }, [answer, next, question.options, status]);
 
-  const avg = stats.times.length ? stats.times.reduce((a, b) => a + b, 0) / stats.times.length : 0;
   const validFrontColors = useMemo(
     () => Object.keys(COLORS).filter((color) => color !== topColor && color !== OPPOSITE[topColor]),
     [topColor],
@@ -287,15 +306,19 @@ export default function Home() {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark"><i /><i /><i /><i /></span>
-          <span><b>六格观察法训练</b></span>
+          <span><b>PLL 训练</b></span>
         </div>
-        <a className="guide-download" href="/six-sticker-pll-guide.pdf" download>
-          六格观察指南 <span>PDF</span><b>↓</b>
-        </a>
+        <div className="header-actions">
+          <a className="guide-download" href="/six-sticker-pll-guide.pdf" download>
+            六格观察指南 <span>PDF</span><b>↓</b>
+          </a>
+          <button className="export-button" onClick={exportTrainingSet}>
+            导出训练合集 <span>CSV</span><b>↓</b>
+          </button>
+        </div>
         <div className="stats">
           <div><span>题目</span><b>{String(stats.total).padStart(2, "0")}</b></div>
           <div><span>正确率</span><b>{stats.total ? Math.round(stats.correct / stats.total * 100) : 0}<em>%</em></b></div>
-          <div><span>平均用时</span><b>{(avg / 1000).toFixed(2)}<em>s</em></b></div>
         </div>
       </header>
 
@@ -312,7 +335,6 @@ export default function Home() {
               {validFrontColors.map((key) => <option key={key} value={key}>{COLORS[key].label}</option>)}
             </select>
           </label>
-          <div className="legend"><span /> F2L 保持复原</div>
         </div>
 
         <div className="quiz-area">
