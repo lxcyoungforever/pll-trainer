@@ -6,6 +6,7 @@ type Face = "U" | "D" | "F" | "B" | "R" | "L";
 type Scheme = Record<Face, string>;
 type PLL = {
   name: string;
+  cnName: string;
   alg: string;
   hint: string;
   family: string;
@@ -119,6 +120,30 @@ const OBSERVATIONS: Record<string, [string, string, string, string]> = {
   Z: ["前、右两面各有相邻 1×2 色条，方向互相垂直。", "旋转后仍能同时看到两组相邻边交换。", "正面色条换到另一侧；结构不像 H 那样中心对称。", "右面色条换向；两面始终各保留一组相邻色。"],
 };
 
+const CHINESE_CASE_NAMES: Record<string, string> = {
+  Aa: "顺时针三角换",
+  Ab: "逆时针三角换",
+  E: "双邻角换",
+  F: "F 型棱角换",
+  Ga: "顺角逆棱镜像",
+  Gb: "逆角顺棱镜像",
+  Gc: "逆角顺棱",
+  Gd: "顺角逆棱",
+  H: "双对棱换",
+  Ja: "邻棱顺交邻角",
+  Jb: "邻棱逆交邻角",
+  Na: "对棱对角镜像",
+  Nb: "对棱对角",
+  Ra: "邻棱顺对邻角",
+  Rb: "邻棱逆对邻角",
+  T: "T 型棱角换",
+  Ua: "逆时针三棱换",
+  Ub: "顺时针三棱换",
+  V: "邻面棱角换",
+  Y: "筝型换",
+  Z: "双邻棱换",
+};
+
 export const PLLS: PLL[] = [
   ["Aa", "x R' U R' D2 R U' R' D2 R2 x'", "左侧车灯 · 三角循环", "Corners"],
   ["Ab", "x R2 D2 R U R' D2 R U' R x'", "右侧车灯 · 三角循环", "Corners"],
@@ -142,7 +167,8 @@ export const PLLS: PLL[] = [
   ["Y", "F R U' R' U' R U R' F' R U R' U' R' F R F'", "一组车灯 · 对角边块交换", "Mixed"],
   ["Z", "M2 U M2 U M' U2 M2 U2 M' U2", "相邻两组边交换 · 两面同色条", "Edges"],
 ].map(([name, alg, hint, family]) => ({
-  name, alg, hint, family, similar: SIMILAR[name] ?? [], observations: OBSERVATIONS[name],
+  name, cnName: CHINESE_CASE_NAMES[name], alg, hint, family,
+  similar: SIMILAR[name] ?? [], observations: OBSERVATIONS[name],
 }));
 
 const AUFS = ["None", "U", "U′", "U2"];
@@ -415,7 +441,7 @@ export default function Home() {
                     <button key={option.name} className={state} onClick={() => answer(option.name)}>
                       <kbd>{i + 1}</kbd>
                       <span className="option-name"><strong>{option.name}</strong><em>PLL</em></span>
-                      <small className="option-hint">{option.hint}</small>
+                      <small className="option-hint">{option.cnName}</small>
                       <i>{state === "is-correct" ? "✓" : state === "is-wrong" ? "×" : "→"}</i>
                     </button>
                   );
