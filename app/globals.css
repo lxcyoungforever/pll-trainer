@@ -22,7 +22,7 @@ main { min-height:100vh; display:flex; flex-direction:column; }
 .controls label { display:block; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:1.3px; text-transform:uppercase; }
 .controls select { display:block; width:145px; margin-top:9px; padding:10px 12px; border:1px solid #cfd0ca; border-radius:5px; background:#faf9f4; color:var(--ink); font-size:14px; text-transform:none; }
 .control-line { display:block; height:1px; width:145px; background:var(--line); margin:25px 0; }
-.legend { margin-top:32px; color:var(--muted); font-size:10px; letter-spacing:.8px; }.legend span { display:inline-block; width:10px; height:10px; background:#333; border-radius:2px; margin-right:7px; vertical-align:-1px; }
+.legend { margin-top:32px; color:var(--muted); font-size:10px; letter-spacing:.8px; }.legend span { display:inline-block; width:10px; height:10px; background:#16a364; border-radius:50%; margin-right:7px; vertical-align:-1px; box-shadow:inset 0 0 0 3px #dceee4; }
 .quiz-area { text-align:center; min-width:0; }
 .eyebrow { color:#7b7f7b; font-size:10px; letter-spacing:1px; text-transform:uppercase; }.eyebrow span { font-weight:800; color:#252825; }
 .cube-stage { position:relative; width:300px; height:280px; margin:22px auto 8px; perspective:900px; }

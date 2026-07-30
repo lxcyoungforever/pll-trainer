@@ -94,16 +94,14 @@ function makeQuestion(previous?: string) {
   };
 }
 
-function Sticker({ color, dark = false }: { color: string; dark?: boolean }) {
-  return <span className="sticker" style={{ background: dark ? "#333333" : color }} />;
+function Sticker({ color }: { color: string }) {
+  return <span className="sticker" style={{ background: color }} />;
 }
 
-function CubeFace({ className, colors, darkRows = false }: {
-  className: string; colors: string[]; darkRows?: boolean;
-}) {
+function CubeFace({ className, colors }: { className: string; colors: string[] }) {
   return (
     <div className={`cube-face ${className}`}>
-      {colors.map((color, i) => <Sticker key={i} color={color} dark={darkRows && i >= 3} />)}
+      {colors.map((color, i) => <Sticker key={i} color={color} />)}
     </div>
   );
 }
@@ -121,8 +119,8 @@ function Cube({ scheme, pll, auf, view }: { scheme: Scheme; pll: PLL; auf: strin
       <div className="cube-shadow" />
       <div className="cube">
         <CubeFace className="face-top" colors={Array(9).fill(top)} />
-        <CubeFace className="face-front" colors={face(frontTop, COLORS[scheme.F].hex)} darkRows />
-        <CubeFace className="face-right" colors={face(rightTop, COLORS[scheme.R].hex)} darkRows />
+        <CubeFace className="face-front" colors={face(frontTop, COLORS[scheme.F].hex)} />
+        <CubeFace className="face-right" colors={face(rightTop, COLORS[scheme.R].hex)} />
       </div>
     </div>
   );
@@ -207,7 +205,7 @@ export default function Home() {
               {validFronts.map((key) => <option key={key} value={key}>{COLORS[key].label}</option>)}
             </select>
           </label>
-          <div className="legend"><span /> F2L 暗化</div>
+          <div className="legend"><span /> 前两层已复原</div>
         </div>
 
         <div className="quiz-area">
