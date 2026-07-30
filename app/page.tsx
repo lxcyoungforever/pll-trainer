@@ -317,11 +317,11 @@ export default function Home() {
     <main>
       <header className="topbar">
         <div className="brand">
-          <span className="brand-logo"><img src="/pll-logo.jpg" alt="" /></span>
+          <span className="brand-logo"><img src="./pll-logo.jpg" alt="" /></span>
           <span><b>PLL 训练</b></span>
         </div>
         <div className="header-actions">
-          <a className="guide-download" href="/six-sticker-pll-guide.pdf" download>
+          <a className="guide-download" href="./six-sticker-pll-guide.pdf" download>
             六格观察指南 <span>PDF</span><b>↓</b>
           </a>
         </div>
