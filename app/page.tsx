@@ -134,6 +134,14 @@ function makeQuestion(previous?: string) {
   };
 }
 
+const INITIAL_QUESTION = {
+  pll: PLLS[0],
+  auf: "None",
+  view: 0,
+  options: [PLLS[0], PLLS[1], PLLS[18], PLLS[5]],
+  id: 0,
+};
+
 function Sticker({ color }: { color: string }) {
   return <span className="sticker" style={{ background: color }} />;
 }
@@ -169,7 +177,7 @@ function Cube({ scheme, pll, auf, view }: { scheme: Scheme; pll: PLL; auf: strin
 export default function Home() {
   const [u, setU] = useState("yellow");
   const [f, setF] = useState("green");
-  const [question, setQuestion] = useState(() => makeQuestion());
+  const [question, setQuestion] = useState(INITIAL_QUESTION);
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
   const [selected, setSelected] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -191,6 +199,10 @@ export default function Home() {
     }, 16);
     return () => window.clearInterval(tick);
   }, [question.id, status]);
+
+  useEffect(() => {
+    setQuestion(makeQuestion());
+  }, []);
 
   const answer = useCallback((name: string) => {
     if (status !== "idle") return;
