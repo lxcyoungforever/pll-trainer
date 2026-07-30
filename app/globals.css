@@ -9,9 +9,8 @@ main { min-height:100vh; display:flex; flex-direction:column; }
 .topbar { height:92px; padding:0 5vw; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); background:rgba(244,243,237,.94); }
 .brand { display:flex; align-items:center; gap:12px; font-size:19px; letter-spacing:-.3px; }
 .brand b { font-weight:800; }
-.brand-mark { width:30px; height:30px; display:grid; grid-template-columns:1fr 1fr; gap:2px; transform:rotate(45deg); margin-right:3px; }
-.brand-mark i { background:var(--ink); border-radius:2px; }
-.brand-mark i:nth-child(2) { background:#ffd500; }.brand-mark i:nth-child(3) { background:#16a364; }.brand-mark i:nth-child(4) { background:#3478f6; }
+.brand-logo { width:38px; height:38px; display:block; overflow:hidden; border-radius:10px; background:#fff; box-shadow:0 3px 10px #1111; }
+.brand-logo img { width:100%; height:100%; display:block; object-fit:cover; transform:scale(1.38); }
 .header-actions { display:flex; align-items:center; gap:8px; margin-left:auto; margin-right:24px; }
 .guide-download,.export-button { display:flex; align-items:center; gap:7px; padding:9px 13px; border:1px solid #d2d3ce; border-radius:999px; color:var(--ink); background:#faf9f4; text-decoration:none; font-size:11px; font-weight:700; transition:.18s; cursor:pointer; }
 .guide-download:hover,.export-button:hover { border-color:#15181b; transform:translateY(-1px); box-shadow:0 6px 16px #1111; }

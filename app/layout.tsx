@@ -5,8 +5,8 @@ export const metadata: Metadata = {
   title: "PLL 训练",
   description: "21 种 PLL 六格观察、配色与反应速度专项训练。",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/pll-logo.jpg",
+    shortcut: "/pll-logo.jpg",
   },
 };
 

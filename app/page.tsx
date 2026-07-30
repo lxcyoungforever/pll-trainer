@@ -338,7 +338,7 @@ export default function Home() {
     <main>
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark"><i /><i /><i /><i /></span>
+          <span className="brand-logo"><img src="/pll-logo.jpg" alt="" /></span>
           <span><b>PLL 训练</b></span>
         </div>
         <div className="header-actions">
