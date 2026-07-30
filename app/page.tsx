@@ -1,12 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 
 type Face = "U" | "D" | "F" | "B" | "R" | "L";
 type Scheme = Record<Face, string>;
 type SmartCubeConnection = import("smartcube-web-bluetooth").SmartCubeConnection;
 type SmartCubeModule = typeof import("smartcube-web-bluetooth");
 type BluetoothSubscription = { unsubscribe(): void };
+type GyroQuaternion = { x: number; y: number; z: number; w: number };
+type CubeSyncController = {
+  addMove(move: string): void;
+  setGyro(quaternion: GyroQuaternion): void;
+  resetGyro(): void;
+};
 type PLL = {
   name: string;
   cnName: string;
@@ -208,14 +214,17 @@ const INITIAL_QUESTION = {
   id: 0,
 };
 
-function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled }: {
+function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled, syncRef }: {
   pll: PLL; auf: string; view: number; topColor: string; frontColor: string; dragEnabled: boolean;
+  syncRef: MutableRefObject<CubeSyncController | null>;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let disposed = false;
-    let player: HTMLElement | null = null;
+    let player: import("cubing/twisty").TwistyPlayer | null = null;
+    let gyroOrigin: GyroQuaternion | null = null;
     const orientation = ORIENTATIONS.get(`${topColor}:${frontColor}`)!;
+    const baseLongitude = -32 + view * 90;
     const aufMove = auf === "None" ? "" : auf.replace("′", "'");
     Promise.all([import("cubing/twisty"), import("cubing/alg")]).then(([{ TwistyPlayer }, { Alg }]) => {
       if (disposed || !hostRef.current) return;
@@ -231,10 +240,41 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled }: 
         hintFacelets: "none",
         experimentalDragInput: dragEnabled ? "auto" : "none",
         cameraLatitude: 24,
-        cameraLongitude: -32 + view * 90,
+        cameraLongitude: baseLongitude,
         cameraDistance: 5.8,
       });
       player = twisty;
+      syncRef.current = {
+        addMove(move) {
+          twisty.experimentalAddMove(move, { cancel: false });
+        },
+        setGyro(q) {
+          if (!dragEnabled) return;
+          if (!gyroOrigin) {
+            gyroOrigin = q;
+            return;
+          }
+          const inv = { x: -gyroOrigin.x, y: -gyroOrigin.y, z: -gyroOrigin.z, w: gyroOrigin.w };
+          const relative = {
+            w: inv.w * q.w - inv.x * q.x - inv.y * q.y - inv.z * q.z,
+            x: inv.w * q.x + inv.x * q.w + inv.y * q.z - inv.z * q.y,
+            y: inv.w * q.y - inv.x * q.z + inv.y * q.w + inv.z * q.x,
+            z: inv.w * q.z + inv.x * q.y - inv.y * q.x + inv.z * q.w,
+          };
+          const pitch = Math.asin(Math.max(-1, Math.min(1, 2 * (relative.w * relative.x - relative.y * relative.z))));
+          const yaw = Math.atan2(
+            2 * (relative.w * relative.y + relative.x * relative.z),
+            1 - 2 * (relative.x * relative.x + relative.y * relative.y),
+          );
+          twisty.cameraLatitude = Math.max(-55, Math.min(55, 24 + pitch * 180 / Math.PI));
+          twisty.cameraLongitude = baseLongitude + yaw * 180 / Math.PI;
+        },
+        resetGyro() {
+          gyroOrigin = null;
+          twisty.cameraLatitude = 24;
+          twisty.cameraLongitude = baseLongitude;
+        },
+      };
       twisty.className = "twisty-cube";
       twisty.setAttribute("aria-label", `${pll.name} PLL 可旋转三维魔方`);
       hostRef.current.replaceChildren(twisty);
@@ -242,9 +282,10 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled }: 
     });
     return () => {
       disposed = true;
+      if (syncRef.current) syncRef.current = null;
       player?.remove();
     };
-  }, [auf, dragEnabled, frontColor, pll.alg, pll.name, topColor, view]);
+  }, [auf, dragEnabled, frontColor, pll.alg, pll.name, syncRef, topColor, view]);
 
   return (
     <div className="cube-stage">
@@ -275,11 +316,15 @@ export default function Home() {
   const [bluetoothError, setBluetoothError] = useState("");
   const [bluetoothProtocol, setBluetoothProtocol] = useState("");
   const [bluetoothStage, setBluetoothStage] = useState("");
+  const [gyroActive, setGyroActive] = useState(false);
   const startedAt = useRef(0);
   const spaceHoldTimer = useRef<number | null>(null);
   const bluetoothModule = useRef<SmartCubeModule | null>(null);
   const bluetoothPuzzle = useRef<SmartCubeConnection | null>(null);
   const bluetoothSubscription = useRef<BluetoothSubscription | null>(null);
+  const cubeSync = useRef<CubeSyncController | null>(null);
+  const lastGyroUpdate = useRef(0);
+  const gyroSeen = useRef(false);
 
   useEffect(() => {
     if (!("bluetooth" in navigator)) {
@@ -314,6 +359,9 @@ export default function Home() {
       setBluetoothProtocol("");
       setBluetoothError("");
       setBluetoothStage("");
+      setGyroActive(false);
+      gyroSeen.current = false;
+      cubeSync.current?.resetGyro();
       return;
     }
     if (!bluetoothModule.current || bluetoothStatus !== "idle") return;
@@ -338,16 +386,32 @@ export default function Home() {
       setBluetoothProtocol(puzzle.protocol.name);
       setBluetoothMove("");
       setBluetoothMoveCount(0);
+      setGyroActive(false);
+      gyroSeen.current = false;
       bluetoothSubscription.current = puzzle.events$.subscribe((event) => {
         if (event.type === "MOVE") {
           setBluetoothMove(event.move);
           setBluetoothMoveCount((count) => count + 1);
+          cubeSync.current?.addMove(event.move);
+        } else if (event.type === "GYRO") {
+          const now = performance.now();
+          if (now - lastGyroUpdate.current >= 40) {
+            lastGyroUpdate.current = now;
+            cubeSync.current?.setGyro(event.quaternion);
+          }
+          if (!gyroSeen.current) {
+            gyroSeen.current = true;
+            setGyroActive(true);
+          }
         } else if (event.type === "DISCONNECT") {
           bluetoothPuzzle.current = null;
           bluetoothSubscription.current = null;
           setBluetoothStatus("idle");
           setBluetoothName("");
           setBluetoothProtocol("");
+          setGyroActive(false);
+          gyroSeen.current = false;
+          cubeSync.current?.resetGyro();
         }
       });
       setBluetoothStatus("connected");
@@ -506,7 +570,7 @@ export default function Home() {
             </button>
             <small>
               {bluetoothStatus === "connected"
-                ? `${bluetoothProtocol} · ${bluetoothMoveCount} 步${bluetoothMove ? ` · ${bluetoothMove}` : ""}`
+                ? `${bluetoothProtocol} · ${bluetoothMoveCount} 步${bluetoothMove ? ` · ${bluetoothMove}` : ""} · ${gyroActive ? "陀螺仪已同步" : "等待陀螺仪"}`
                 : bluetoothError || "实验支持魔域 WCU_MY32 / WCU_MY33"}
             </small>
           </div>
@@ -551,7 +615,7 @@ export default function Home() {
                 {bluetoothStatus === "checking" && "准备中"}
                 {bluetoothStatus === "idle" && "连接魔域"}
                 {bluetoothStatus === "connecting" && (bluetoothStage || "选择设备")}
-                {bluetoothStatus === "connected" && `${bluetoothProtocol} · ${bluetoothMoveCount}步`}
+                {bluetoothStatus === "connected" && `${bluetoothMoveCount}步 · ${gyroActive ? "陀螺仪" : "同步中"}`}
                 {bluetoothStatus === "unsupported" && "不支持"}
                 {bluetoothStatus === "error" && "加载失败"}
               </b>
@@ -559,7 +623,7 @@ export default function Home() {
           </div>
           {bluetoothError && <small className="mobile-bluetooth-error">{bluetoothError}</small>}
           <div className="eyebrow"><span>观察角度</span> {VIEW_LABELS[question.view]} · <span>PRE-AUF</span> {question.auf}</div>
-          <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} dragEnabled={dragEnabled} />
+          <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} dragEnabled={dragEnabled} syncRef={cubeSync} />
           {hasStarted ? (
             <>
               <div className={`timer ${status}`}><span>{(elapsed / 1000).toFixed(2)}</span><small>秒</small></div>
