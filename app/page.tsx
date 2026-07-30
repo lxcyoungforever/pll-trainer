@@ -251,14 +251,19 @@ export default function Home() {
   const [frontColor, setFrontColor] = useState("green");
   const [dragEnabled, setDragEnabled] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
+  const [holdingSpace, setHoldingSpace] = useState(false);
   const [question, setQuestion] = useState(INITIAL_QUESTION);
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
   const [selected, setSelected] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [stats, setStats] = useState({ total: 0, correct: 0 });
   const startedAt = useRef(0);
+  const spaceHoldTimer = useRef<number | null>(null);
 
   const startTraining = useCallback(() => {
+    if (spaceHoldTimer.current !== null) window.clearTimeout(spaceHoldTimer.current);
+    spaceHoldTimer.current = null;
+    setHoldingSpace(false);
     setQuestion(makeQuestion());
     setStatus("idle"); setSelected(null); setElapsed(0);
     setHasStarted(true);
@@ -294,7 +299,9 @@ export default function Home() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.key === " " || e.code === "Space") && !hasStarted) {
         e.preventDefault();
-        startTraining();
+        if (e.repeat || spaceHoldTimer.current !== null) return;
+        setHoldingSpace(true);
+        spaceHoldTimer.current = window.setTimeout(startTraining, 600);
         return;
       }
       if (["1", "2", "3", "4"].includes(e.key)) answer(question.options[Number(e.key) - 1].name);
@@ -303,8 +310,20 @@ export default function Home() {
         next();
       }
     };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if ((e.key === " " || e.code === "Space") && !hasStarted && spaceHoldTimer.current !== null) {
+        window.clearTimeout(spaceHoldTimer.current);
+        spaceHoldTimer.current = null;
+        setHoldingSpace(false);
+      }
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp);
+      if (spaceHoldTimer.current !== null) window.clearTimeout(spaceHoldTimer.current);
+    };
   }, [answer, hasStarted, next, question.options, startTraining, status]);
 
   const validFrontColors = useMemo(
@@ -366,30 +385,20 @@ export default function Home() {
         <div className="quiz-area">
           <div className="eyebrow"><span>观察角度</span> {VIEW_LABELS[question.view]} · <span>PRE-AUF</span> {question.auf}</div>
           <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} dragEnabled={dragEnabled} />
-          {!hasStarted && (
-            <div className="cube-start-overlay">
-              <span>准备就绪</span>
-              <button onClick={startTraining}>开始训练</button>
-              <small>点击后生成第一题并开始计时 · Space</small>
+          {hasStarted ? (
+            <>
+              <div className={`timer ${status}`}><span>{(elapsed / 1000).toFixed(2)}</span><small>秒</small></div>
+              <p className="instruction">只观察顶层的两个侧面，判断这是哪一种 PLL</p>
+            </>
+          ) : (
+            <div className={`hold-to-start ${holdingSpace ? "holding" : ""}`}>
+              按住 <kbd>空格</kbd> 开始
             </div>
           )}
-          <div className={`timer ${status} ${hasStarted ? "" : "waiting"}`}>
-            <span>{hasStarted ? (elapsed / 1000).toFixed(2) : "—"}</span>
-            <small>{hasStarted ? "秒" : "等待开始"}</small>
-          </div>
-          <p className="instruction">{hasStarted ? "只观察顶层的两个侧面，判断这是哪一种 PLL" : "设置好观察模式和配色后再开始"}</p>
         </div>
 
-        <div className="answer-panel">
-          {!hasStarted ? (
-            <div className="start-panel">
-              <span>准备好了吗？</span>
-              <h2>开始后才会计时</h2>
-              <p>第一题将在点击按钮后生成。</p>
-              <button onClick={startTraining}>开始训练 <kbd>Space</kbd></button>
-            </div>
-          ) : (
-            <>
+        {hasStarted && (
+          <div className="answer-panel">
               <div className="answer-heading"><span>你的答案</span><small>按 1–4 快速作答</small></div>
               <div className="answers">
                 {question.options.map((option, i) => {
@@ -405,9 +414,8 @@ export default function Home() {
                 })}
               </div>
               {status === "correct" && <div className="success-toast">识别正确 · {(elapsed / 1000).toFixed(2)}s <span>按空格进入下一题</span></div>}
-            </>
-          )}
-        </div>
+          </div>
+        )}
         {status !== "idle" && (
           <section className="observation-guide">
             <div className="guide-heading">
