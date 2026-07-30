@@ -366,6 +366,13 @@ export default function Home() {
         <div className="quiz-area">
           <div className="eyebrow"><span>观察角度</span> {VIEW_LABELS[question.view]} · <span>PRE-AUF</span> {question.auf}</div>
           <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} dragEnabled={dragEnabled} />
+          {!hasStarted && (
+            <div className="cube-start-overlay">
+              <span>准备就绪</span>
+              <button onClick={startTraining}>开始训练</button>
+              <small>点击后生成第一题并开始计时 · Space</small>
+            </div>
+          )}
           <div className={`timer ${status} ${hasStarted ? "" : "waiting"}`}>
             <span>{hasStarted ? (elapsed / 1000).toFixed(2) : "—"}</span>
             <small>{hasStarted ? "秒" : "等待开始"}</small>
