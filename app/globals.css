@@ -12,9 +12,9 @@ main { min-height:100vh; display:flex; flex-direction:column; }
 .brand-logo { width:42px; height:42px; display:block; overflow:hidden; background:transparent; }
 .brand-logo img { width:100%; height:100%; display:block; object-fit:cover; transform:scale(1.42); mix-blend-mode:multiply; }
 .header-actions { display:flex; align-items:center; gap:8px; margin-left:auto; margin-right:24px; }
-.guide-download,.export-button { display:flex; align-items:center; gap:7px; padding:9px 13px; border:1px solid #d2d3ce; border-radius:999px; color:var(--ink); background:#faf9f4; text-decoration:none; font-size:11px; font-weight:700; transition:.18s; cursor:pointer; }
-.guide-download:hover,.export-button:hover { border-color:#15181b; transform:translateY(-1px); box-shadow:0 6px 16px #1111; }
-.guide-download span,.export-button span { color:#747a80; font-size:8px; letter-spacing:1px; }.guide-download b,.export-button b { color:#176b4a; font-size:14px; }
+.guide-download { display:flex; align-items:center; gap:7px; padding:9px 13px; border:1px solid #d2d3ce; border-radius:999px; color:var(--ink); background:#faf9f4; text-decoration:none; font-size:11px; font-weight:700; transition:.18s; cursor:pointer; }
+.guide-download:hover { border-color:#15181b; transform:translateY(-1px); box-shadow:0 6px 16px #1111; }
+.guide-download span { color:#747a80; font-size:8px; letter-spacing:1px; }.guide-download b { color:#176b4a; font-size:14px; }
 .stats { display:flex; height:100%; }
 .stats div { width:120px; padding:18px 22px; border-left:1px solid var(--line); display:flex; flex-direction:column; justify-content:center; gap:4px; }
 .stats span { color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:1.5px; }
@@ -71,12 +71,12 @@ main { min-height:100vh; display:flex; flex-direction:column; }
 footer { height:54px; border-top:1px solid var(--line); display:flex; align-items:center; gap:12px; padding:0 5vw; color:#818580; font-size:9px; text-transform:uppercase; letter-spacing:1.1px; }
 footer i { width:3px; height:3px; background:#aaa; border-radius:50%; }
 @media (max-width:950px) {
-  .header-actions { margin-right:12px; }.guide-download,.export-button { padding:8px 10px; font-size:10px; }.guide-download span,.export-button span { display:none; }
+  .header-actions { margin-right:12px; }.guide-download { padding:8px 10px; font-size:10px; }.guide-download span { display:none; }
   .workspace { grid-template-columns:150px 1fr; }.answer-panel { grid-column:1 / -1; width:min(620px,100%); justify-self:center; }.controls { grid-row:1; }.quiz-area { grid-row:1; }.auf-grid { grid-template-columns:1fr 1fr; }
 }
 @media (max-width:650px) {
-  .topbar { height:auto; padding:14px 16px; align-items:center; flex-wrap:wrap; gap:10px; }.brand { font-size:17px; }.header-actions { order:3; width:100%; margin:0; }.guide-download,.export-button { flex:1; justify-content:center; }.stats { position:absolute; top:116px; left:0; width:100%; height:64px; border-bottom:1px solid var(--line); justify-content:center; background:var(--paper); }.stats div { width:50%; padding:10px 20px; }.stats div:first-child { border-left:0; }
-  .workspace { display:flex; flex-direction:column; padding:122px 20px 22px; gap:20px; }
+  .topbar { height:auto; padding:14px 16px; align-items:center; gap:10px; }.brand { font-size:17px; }.header-actions { margin:0 0 0 auto; }.guide-download { justify-content:center; }.stats { position:absolute; top:70px; left:0; width:100%; height:64px; border-bottom:1px solid var(--line); justify-content:center; background:var(--paper); }.stats div { width:50%; padding:10px 20px; }.stats div:first-child { border-left:0; }
+  .workspace { display:flex; flex-direction:column; padding:96px 20px 22px; gap:20px; }
   .controls { width:100%; order:2; border-right:0; border-top:1px solid var(--line); padding:16px 0 0; display:grid; grid-template-columns:1fr 1fr; gap:12px; }.controls select,.mode-switch { width:100%; }.control-line { display:none; }.data-badge { width:auto; }
   .mode-control { grid-column:1 / -1; }
   .quiz-area { order:1; width:100%; }.cube-stage { width:340px; height:290px; margin-top:-6px; }.twisty-host { height:260px; }

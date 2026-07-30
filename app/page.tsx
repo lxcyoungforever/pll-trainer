@@ -150,27 +150,6 @@ const VIEW_LABELS = ["正面", "右转 90°", "背面", "左转 90°"];
 
 function randomItem<T>(items: T[]) { return items[Math.floor(Math.random() * items.length)]; }
 
-function exportTrainingSet() {
-  const headers = ["PLL", "分类", "核心特征", "相近题型", "无 AUF", "U", "U′", "U2", "标准公式"];
-  const escapeCell = (value: string) => `"${value.replaceAll('"', '""')}"`;
-  const rows = PLLS.map((pll) => [
-    pll.name,
-    pll.family,
-    pll.hint,
-    pll.similar.join(" / "),
-    ...pll.observations,
-    pll.alg,
-  ]);
-  const csv = [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n");
-  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "PLL训练合集.csv";
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 function makeQuestion(previous?: string) {
   const pool = PLLS.filter((p) => p.name !== previous);
   const pll = randomItem(pool);
@@ -345,9 +324,6 @@ export default function Home() {
           <a className="guide-download" href="/six-sticker-pll-guide.pdf" download>
             六格观察指南 <span>PDF</span><b>↓</b>
           </a>
-          <button className="export-button" onClick={exportTrainingSet}>
-            导出训练合集 <span>CSV</span><b>↓</b>
-          </button>
         </div>
         <div className="stats">
           <div><span>题目</span><b>{String(stats.total).padStart(2, "0")}</b></div>
