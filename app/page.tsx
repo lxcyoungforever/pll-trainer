@@ -178,6 +178,9 @@ const AUFS = ["None", "U", "U′", "U2"];
 const VIEW_LABELS = ["正面", "右转 90°", "背面", "左转 90°"];
 
 function randomItem<T>(items: T[]) { return items[Math.floor(Math.random() * items.length)]; }
+function nextItem<T>(items: T[], current: T) {
+  return items[(Math.max(0, items.indexOf(current)) + 1) % items.length];
+}
 
 function makeQuestion(previous?: string) {
   const pool = PLLS.filter((p) => p.name !== previous);
@@ -504,6 +507,39 @@ export default function Home() {
                 高级<small>锁定</small>
               </button>
             </div>
+          </div>
+          <div className="mobile-quick-controls">
+            <button type="button" onClick={() => {
+              const nextTop = nextItem(Object.keys(COLORS), topColor);
+              const nextFronts = Object.keys(COLORS).filter((color) => color !== nextTop && color !== OPPOSITE[nextTop]);
+              setTopColor(nextTop);
+              if (!nextFronts.includes(frontColor)) setFrontColor(nextFronts[0]);
+            }}>
+              <i style={{ background: COLORS[topColor].hex }} />
+              <span>顶面</span><b>{COLORS[topColor].label}</b>
+            </button>
+            <button type="button" onClick={() => setFrontColor(nextItem(validFrontColors, frontColor))}>
+              <i style={{ background: COLORS[frontColor].hex }} />
+              <span>前面</span><b>{COLORS[frontColor].label}</b>
+            </button>
+            <button
+              type="button"
+              className={`mobile-bluetooth ${bluetoothStatus === "connected" ? "is-connected" : ""}`}
+              onClick={toggleBluetooth}
+              disabled={bluetoothStatus === "checking" || bluetoothStatus === "connecting" || bluetoothStatus === "unsupported"}
+              title={bluetoothError || bluetoothName}
+            >
+              <i />
+              <span>蓝牙</span>
+              <b>
+                {bluetoothStatus === "checking" && "准备中"}
+                {bluetoothStatus === "idle" && "连接魔域"}
+                {bluetoothStatus === "connecting" && "选择设备"}
+                {bluetoothStatus === "connected" && `${bluetoothProtocol} · ${bluetoothMoveCount}步`}
+                {bluetoothStatus === "unsupported" && "不支持"}
+                {bluetoothStatus === "error" && "加载失败"}
+              </b>
+            </button>
           </div>
           <div className="eyebrow"><span>观察角度</span> {VIEW_LABELS[question.view]} · <span>PRE-AUF</span> {question.auf}</div>
           <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} dragEnabled={dragEnabled} />
