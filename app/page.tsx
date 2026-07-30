@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Face = "U" | "D" | "F" | "B" | "R" | "L";
 type Scheme = Record<Face, string>;
@@ -29,6 +29,39 @@ const OPPOSITE: Record<string, string> = {
 
 const SIDE_RING = ["red", "green", "orange", "blue"];
 
+type CubeOrientation = Record<Face, string>;
+const START_ORIENTATION: CubeOrientation = {
+  U: "white", D: "yellow", F: "green", B: "blue", R: "red", L: "orange",
+};
+
+function rotateOrientation(s: CubeOrientation, move: "x" | "y" | "z"): CubeOrientation {
+  if (move === "x") return { U: s.F, F: s.D, D: s.B, B: s.U, R: s.R, L: s.L };
+  if (move === "y") return { U: s.U, D: s.D, F: s.L, R: s.F, B: s.R, L: s.B };
+  return { U: s.L, R: s.U, D: s.R, L: s.D, F: s.F, B: s.B };
+}
+
+function invertRotation(alg: string) {
+  return alg.split(" ").filter(Boolean).reverse().map((move) => `${move}'`).join(" ");
+}
+
+const ORIENTATIONS = (() => {
+  const found = new Map<string, { alg: string; inverse: string }>();
+  const seen = new Set<string>();
+  const queue: Array<{ state: CubeOrientation; moves: string[] }> = [{ state: START_ORIENTATION, moves: [] }];
+  while (queue.length) {
+    const current = queue.shift()!;
+    const stateKey = (["U", "D", "F", "B", "R", "L"] as Face[]).map((face) => current.state[face]).join(":");
+    if (seen.has(stateKey)) continue;
+    seen.add(stateKey);
+    const alg = current.moves.join(" ");
+    found.set(`${current.state.U}:${current.state.F}`, { alg, inverse: invertRotation(alg) });
+    for (const move of ["x", "y", "z"] as const) {
+      queue.push({ state: rotateOrientation(current.state, move), moves: [...current.moves, move] });
+    }
+  }
+  return found;
+})();
+
 /** 根据 U/F 两个相邻中心块，推导标准配色的六个面。 */
 export function getCubeScheme(u: string, f: string): Scheme | null {
   if (u === f || OPPOSITE[u] === f) return null;
@@ -56,7 +89,7 @@ export function getCubeScheme(u: string, f: string): Scheme | null {
 const SIMILAR: Record<string, string[]> = {
   Aa: ["Ab", "V", "F"], Ab: ["Aa", "V", "F"],
   E: ["Na", "Nb", "V"], F: ["T", "Jb", "Aa"], Ga: ["Gb", "Gc", "Gd"], Gb: ["Ga", "Gd", "Gc"],
-  Gc: ["Gd", "Ga", "Gb"], Gd: ["Gc", "Gb", "Ga"], H: ["Z", "Ea", "Na"], Ja: ["Jb", "T", "Ra"],
+  Gc: ["Gd", "Ga", "Gb"], Gd: ["Gc", "Gb", "Ga"], H: ["Z", "E", "Na"], Ja: ["Jb", "T", "Ra"],
   Jb: ["Ja", "T", "Rb"], Na: ["Nb", "V", "Y"], Nb: ["Na", "V", "Y"], Ra: ["Rb", "Ja", "Ga"],
   Rb: ["Ra", "Jb", "Gb"], T: ["Jb", "F", "Y"], V: ["Y", "Aa", "Ab"], Y: ["V", "T", "Na"],
   Ua: ["Ub", "Z", "H"], Ub: ["Ua", "Z", "H"], Z: ["H", "Ua", "Ub"],
@@ -143,18 +176,24 @@ const INITIAL_QUESTION = {
   id: 0,
 };
 
-function InteractiveCube({ pll, auf, view }: { pll: PLL; auf: string; view: number }) {
+function InteractiveCube({ pll, auf, view, topColor, frontColor }: {
+  pll: PLL; auf: string; view: number; topColor: string; frontColor: string;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let disposed = false;
     let player: HTMLElement | null = null;
-    const inverseAuf = ({ None: "", U: "U'", "U′": "U", U2: "U2" } as Record<string, string>)[auf];
-    import("cubing/twisty").then(({ TwistyPlayer }) => {
+    const orientation = ORIENTATIONS.get(`${topColor}:${frontColor}`)!;
+    const aufMove = auf === "None" ? "" : auf.replace("′", "'");
+    Promise.all([import("cubing/twisty"), import("cubing/alg")]).then(([{ TwistyPlayer }, { Alg }]) => {
       if (disposed || !hostRef.current) return;
-      player = new TwistyPlayer({
+      const caseAlg = new Alg(pll.alg).invert().toString();
+      const setupAlg = orientation.alg;
+      const orientedCaseAlg = `${caseAlg} ${aufMove}`.trim();
+      const twisty = new TwistyPlayer({
         puzzle: "3x3x3",
-        alg: `${inverseAuf} ${pll.alg}`.trim(),
-        experimentalSetupAnchor: "end",
+        alg: orientedCaseAlg,
+        experimentalSetupAlg: setupAlg,
         background: "none",
         controlPanel: "none",
         hintFacelets: "none",
@@ -163,15 +202,17 @@ function InteractiveCube({ pll, auf, view }: { pll: PLL; auf: string; view: numb
         cameraLongitude: -32 + view * 90,
         cameraDistance: 5.8,
       });
-      player.className = "twisty-cube";
-      player.setAttribute("aria-label", `${pll.name} PLL 可旋转三维魔方`);
-      hostRef.current.replaceChildren(player);
+      player = twisty;
+      twisty.className = "twisty-cube";
+      twisty.setAttribute("aria-label", `${pll.name} PLL 可旋转三维魔方`);
+      hostRef.current.replaceChildren(twisty);
+      twisty.jumpToEnd();
     });
     return () => {
       disposed = true;
       player?.remove();
     };
-  }, [auf, pll.alg, pll.name, view]);
+  }, [auf, frontColor, pll.alg, pll.name, topColor, view]);
 
   return (
     <div className="cube-stage">
@@ -182,6 +223,8 @@ function InteractiveCube({ pll, auf, view }: { pll: PLL; auf: string; view: numb
 }
 
 export default function Home() {
+  const [topColor, setTopColor] = useState("yellow");
+  const [frontColor, setFrontColor] = useState("green");
   const [question, setQuestion] = useState(INITIAL_QUESTION);
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
   const [selected, setSelected] = useState<string | null>(null);
@@ -231,6 +274,14 @@ export default function Home() {
   }, [answer, next, question.options, status]);
 
   const avg = stats.times.length ? stats.times.reduce((a, b) => a + b, 0) / stats.times.length : 0;
+  const validFrontColors = useMemo(
+    () => Object.keys(COLORS).filter((color) => color !== topColor && color !== OPPOSITE[topColor]),
+    [topColor],
+  );
+  useEffect(() => {
+    if (!validFrontColors.includes(frontColor)) setFrontColor(validFrontColors[0]);
+  }, [frontColor, validFrontColors]);
+
   return (
     <main>
       <header className="topbar">
@@ -248,15 +299,23 @@ export default function Home() {
 
       <section className="workspace">
         <div className="controls">
-          <div className="data-badge"><span>公式来源</span><strong>标准 21 PLL</strong><small>真实公式反推题面</small></div>
+          <label>顶面颜色
+            <select value={topColor} onChange={(e) => setTopColor(e.target.value)}>
+              {Object.entries(COLORS).map(([key, color]) => <option key={key} value={key}>{color.label}</option>)}
+            </select>
+          </label>
           <span className="control-line" />
-          <div className="data-badge"><span>交互方式</span><strong>鼠标 / 手指拖动</strong><small>可观察全部六面</small></div>
+          <label>前面颜色
+            <select value={frontColor} onChange={(e) => setFrontColor(e.target.value)}>
+              {validFrontColors.map((key) => <option key={key} value={key}>{COLORS[key].label}</option>)}
+            </select>
+          </label>
           <div className="legend"><span /> F2L 保持复原</div>
         </div>
 
         <div className="quiz-area">
           <div className="eyebrow"><span>观察角度</span> {VIEW_LABELS[question.view]} · <span>PRE-AUF</span> {question.auf}</div>
-          <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} />
+          <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} />
           <div className={`timer ${status}`}><span>{(elapsed / 1000).toFixed(2)}</span><small>秒</small></div>
           <p className="instruction">只观察顶层的两个侧面，判断这是哪一种 PLL</p>
         </div>
@@ -278,10 +337,10 @@ export default function Home() {
           </div>
           {status === "correct" && <div className="success-toast">识别正确 · {(elapsed / 1000).toFixed(2)}s <span>按空格进入下一题</span></div>}
         </div>
-        {status === "wrong" && (
+        {status !== "idle" && (
           <section className="observation-guide">
             <div className="guide-heading">
-              <div><span>识别复盘</span><h2>{question.pll.name} PLL · 四方向观察方法</h2><p>{question.pll.hint}</p></div>
+              <div><span>{status === "correct" ? "识别正确 · 观察复盘" : "识别错误 · 观察复盘"}</span><h2>{question.pll.name} PLL · 四方向观察方法</h2><p>{question.pll.hint}</p></div>
               <button onClick={next}>下一题 <kbd>Space</kbd></button>
             </div>
             <div className="auf-grid">
