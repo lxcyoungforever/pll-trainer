@@ -250,12 +250,20 @@ export default function Home() {
   const [topColor, setTopColor] = useState("yellow");
   const [frontColor, setFrontColor] = useState("green");
   const [dragEnabled, setDragEnabled] = useState(true);
+  const [hasStarted, setHasStarted] = useState(false);
   const [question, setQuestion] = useState(INITIAL_QUESTION);
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
   const [selected, setSelected] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [stats, setStats] = useState({ total: 0, correct: 0 });
   const startedAt = useRef(0);
+
+  const startTraining = useCallback(() => {
+    setQuestion(makeQuestion());
+    setStatus("idle"); setSelected(null); setElapsed(0);
+    setHasStarted(true);
+    startedAt.current = performance.now();
+  }, []);
 
   const next = useCallback(() => {
     setQuestion((q) => makeQuestion(q.pll.name));
@@ -264,29 +272,31 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!hasStarted) return;
     startedAt.current = performance.now();
     const tick = window.setInterval(() => {
       if (status === "idle") setElapsed(performance.now() - startedAt.current);
     }, 16);
     return () => window.clearInterval(tick);
-  }, [question.id, status]);
-
-  useEffect(() => {
-    setQuestion(makeQuestion());
-  }, []);
+  }, [hasStarted, question.id, status]);
 
   const answer = useCallback((name: string) => {
-    if (status !== "idle") return;
+    if (!hasStarted || status !== "idle") return;
     const time = performance.now() - startedAt.current;
     const correct = name === question.pll.name;
     setElapsed(time); setSelected(name); setStatus(correct ? "correct" : "wrong");
     setStats((s) => ({
       total: s.total + 1, correct: s.correct + (correct ? 1 : 0),
     }));
-  }, [next, question.pll.name, status]);
+  }, [hasStarted, question.pll.name, status]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.key === " " || e.code === "Space") && !hasStarted) {
+        e.preventDefault();
+        startTraining();
+        return;
+      }
       if (["1", "2", "3", "4"].includes(e.key)) answer(question.options[Number(e.key) - 1].name);
       if ((e.key === " " || e.code === "Space") && status !== "idle") {
         e.preventDefault();
@@ -295,7 +305,7 @@ export default function Home() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [answer, next, question.options, status]);
+  }, [answer, hasStarted, next, question.options, startTraining, status]);
 
   const validFrontColors = useMemo(
     () => Object.keys(COLORS).filter((color) => color !== topColor && color !== OPPOSITE[topColor]),
@@ -356,26 +366,40 @@ export default function Home() {
         <div className="quiz-area">
           <div className="eyebrow"><span>观察角度</span> {VIEW_LABELS[question.view]} · <span>PRE-AUF</span> {question.auf}</div>
           <InteractiveCube pll={question.pll} auf={question.auf} view={question.view} topColor={topColor} frontColor={frontColor} dragEnabled={dragEnabled} />
-          <div className={`timer ${status}`}><span>{(elapsed / 1000).toFixed(2)}</span><small>秒</small></div>
-          <p className="instruction">只观察顶层的两个侧面，判断这是哪一种 PLL</p>
+          <div className={`timer ${status} ${hasStarted ? "" : "waiting"}`}>
+            <span>{hasStarted ? (elapsed / 1000).toFixed(2) : "—"}</span>
+            <small>{hasStarted ? "秒" : "等待开始"}</small>
+          </div>
+          <p className="instruction">{hasStarted ? "只观察顶层的两个侧面，判断这是哪一种 PLL" : "设置好观察模式和配色后再开始"}</p>
         </div>
 
         <div className="answer-panel">
-          <div className="answer-heading"><span>你的答案</span><small>按 1–4 快速作答</small></div>
-          <div className="answers">
-            {question.options.map((option, i) => {
-              const isCorrect = option.name === question.pll.name;
-              const state = status !== "idle" && isCorrect ? "is-correct"
-                : status === "wrong" && selected === option.name ? "is-wrong" : "";
-              return (
-                <button key={option.name} className={state} onClick={() => answer(option.name)}>
-                  <kbd>{i + 1}</kbd><strong>{option.name}</strong><span>PLL</span>
-                  <i>{state === "is-correct" ? "✓" : state === "is-wrong" ? "×" : "→"}</i>
-                </button>
-              );
-            })}
-          </div>
-          {status === "correct" && <div className="success-toast">识别正确 · {(elapsed / 1000).toFixed(2)}s <span>按空格进入下一题</span></div>}
+          {!hasStarted ? (
+            <div className="start-panel">
+              <span>准备好了吗？</span>
+              <h2>开始后才会计时</h2>
+              <p>第一题将在点击按钮后生成。</p>
+              <button onClick={startTraining}>开始训练 <kbd>Space</kbd></button>
+            </div>
+          ) : (
+            <>
+              <div className="answer-heading"><span>你的答案</span><small>按 1–4 快速作答</small></div>
+              <div className="answers">
+                {question.options.map((option, i) => {
+                  const isCorrect = option.name === question.pll.name;
+                  const state = status !== "idle" && isCorrect ? "is-correct"
+                    : status === "wrong" && selected === option.name ? "is-wrong" : "";
+                  return (
+                    <button key={option.name} className={state} onClick={() => answer(option.name)}>
+                      <kbd>{i + 1}</kbd><strong>{option.name}</strong><span>PLL</span>
+                      <i>{state === "is-correct" ? "✓" : state === "is-wrong" ? "×" : "→"}</i>
+                    </button>
+                  );
+                })}
+              </div>
+              {status === "correct" && <div className="success-toast">识别正确 · {(elapsed / 1000).toFixed(2)}s <span>按空格进入下一题</span></div>}
+            </>
+          )}
         </div>
         {status !== "idle" && (
           <section className="observation-guide">
