@@ -55,7 +55,7 @@ function invertRotation(alg: string) {
 }
 
 const ORIENTATIONS = (() => {
-  const found = new Map<string, { alg: string; inverse: string }>();
+  const found = new Map<string, { alg: string; inverse: string; state: CubeOrientation }>();
   const seen = new Set<string>();
   const queue: Array<{ state: CubeOrientation; moves: string[] }> = [{ state: START_ORIENTATION, moves: [] }];
   while (queue.length) {
@@ -64,7 +64,7 @@ const ORIENTATIONS = (() => {
     if (seen.has(stateKey)) continue;
     seen.add(stateKey);
     const alg = current.moves.join(" ");
-    found.set(`${current.state.U}:${current.state.F}`, { alg, inverse: invertRotation(alg) });
+    found.set(`${current.state.U}:${current.state.F}`, { alg, inverse: invertRotation(alg), state: current.state });
     for (const move of ["x", "y", "z"] as const) {
       queue.push({ state: rotateOrientation(current.state, move), moves: [...current.moves, move] });
     }
@@ -249,7 +249,12 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled, sy
       player = twisty;
       syncRef.current = {
         addMove(move) {
-          twisty.experimentalAddMove(move, { cancel: false });
+          const sourceFace = move[0] as Face;
+          const sourceColor = START_ORIENTATION[sourceFace];
+          const targetFace = (Object.keys(orientation.state) as Face[])
+            .find((face) => orientation.state[face] === sourceColor);
+          const mappedMove = targetFace ? `${targetFace}${move.slice(1)}` : move;
+          twisty.experimentalAddMove(mappedMove, { cancel: false });
         },
         setGyro(q) {
           if (!dragEnabled) return;
