@@ -12,6 +12,7 @@ type CubeSyncController = {
   addMove(move: string): void;
   setGyro(quaternion: GyroQuaternion): void;
   resetGyro(): void;
+  resetCube(): void;
 };
 type PLL = {
   name: string;
@@ -188,6 +189,13 @@ function nextItem<T>(items: T[], current: T) {
   return items[(Math.max(0, items.indexOf(current)) + 1) % items.length];
 }
 
+function isSolvedFacelets(facelets: string) {
+  return facelets.length === 54 && Array.from({ length: 6 }, (_, face) => {
+    const start = face * 9;
+    return facelets.slice(start, start + 9).split("").every((sticker) => sticker === facelets[start]);
+  }).every(Boolean);
+}
+
 function makeQuestion(previous?: string) {
   const pool = PLLS.filter((p) => p.name !== previous);
   const pll = randomItem(pool);
@@ -226,6 +234,9 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled, sy
     let gyroTarget = { latitude: 24, longitude: -32 + view * 90 };
     let gyroCurrent = { ...gyroTarget };
     let gyroFrame = 0;
+    let moveTimer = 0;
+    let moveAnimating = false;
+    const moveQueue: string[] = [];
     const orientation = ORIENTATIONS.get(`${topColor}:${frontColor}`)!;
     const baseLongitude = -32 + view * 90;
     const aufMove = auf === "None" ? "" : auf.replace("′", "'");
@@ -247,6 +258,18 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled, sy
         cameraDistance: 5.8,
       });
       player = twisty;
+      const controller = twisty.controller as unknown as { catchUpHelper?: { catchUpMs: number } };
+      if (controller.catchUpHelper) controller.catchUpHelper.catchUpMs = 150;
+      const playNextMove = () => {
+        const nextMove = moveQueue.shift();
+        if (!nextMove) {
+          moveAnimating = false;
+          return;
+        }
+        moveAnimating = true;
+        twisty.experimentalAddMove(nextMove, { cancel: false });
+        moveTimer = window.setTimeout(playNextMove, 155);
+      };
       syncRef.current = {
         addMove(move) {
           const sourceFace = move[0] as Face;
@@ -254,7 +277,8 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled, sy
           const targetFace = (Object.keys(orientation.state) as Face[])
             .find((face) => orientation.state[face] === sourceColor);
           const mappedMove = targetFace ? `${targetFace}${move.slice(1)}` : move;
-          twisty.experimentalAddMove(mappedMove, { cancel: false });
+          moveQueue.push(mappedMove);
+          if (!moveAnimating) playNextMove();
         },
         setGyro(q) {
           if (!dragEnabled) return;
@@ -284,6 +308,13 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled, sy
           twisty.cameraLatitude = gyroCurrent.latitude;
           twisty.cameraLongitude = gyroCurrent.longitude;
         },
+        resetCube() {
+          moveQueue.length = 0;
+          window.clearTimeout(moveTimer);
+          moveAnimating = false;
+          twisty.alg = orientedCaseAlg;
+          twisty.jumpToEnd();
+        },
       };
       const renderGyro = () => {
         if (disposed) return;
@@ -306,6 +337,7 @@ function InteractiveCube({ pll, auf, view, topColor, frontColor, dragEnabled, sy
     return () => {
       disposed = true;
       cancelAnimationFrame(gyroFrame);
+      window.clearTimeout(moveTimer);
       if (syncRef.current) syncRef.current = null;
       player?.remove();
     };
@@ -342,6 +374,11 @@ export default function Home() {
   const [bluetoothProtocol, setBluetoothProtocol] = useState("");
   const [bluetoothStage, setBluetoothStage] = useState("");
   const [gyroActive, setGyroActive] = useState(false);
+  const [scramble, setScramble] = useState("");
+  const [practicePhase, setPracticePhase] = useState<"idle" | "scrambling" | "solving" | "solved">("idle");
+  const [practiceMessage, setPracticeMessage] = useState("连接魔方后生成随机打乱");
+  const [solveElapsed, setSolveElapsed] = useState(0);
+  const [solveMoves, setSolveMoves] = useState(0);
   const startedAt = useRef(0);
   const spaceHoldTimer = useRef<number | null>(null);
   const bluetoothModule = useRef<SmartCubeModule | null>(null);
@@ -349,6 +386,24 @@ export default function Home() {
   const bluetoothSubscription = useRef<BluetoothSubscription | null>(null);
   const cubeSync = useRef<CubeSyncController | null>(null);
   const gyroSeen = useRef(false);
+  const latestFacelets = useRef("");
+  const practicePhaseRef = useRef(practicePhase);
+  const solveStartedAt = useRef(0);
+  const solveMoveStart = useRef(0);
+  const bluetoothMoveCountRef = useRef(0);
+
+  useEffect(() => { practicePhaseRef.current = practicePhase; }, [practicePhase]);
+
+  useEffect(() => {
+    if (practicePhase !== "solving") return;
+    let frame = 0;
+    const tick = () => {
+      setSolveElapsed(performance.now() - solveStartedAt.current);
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [practicePhase]);
 
   useEffect(() => {
     const syncPageFromHash = () => setPage(location.hash === "#smart-cube" ? "smartcube" : "training");
@@ -397,6 +452,7 @@ export default function Home() {
       setBluetoothName("");
       setBluetoothMove("");
       setBluetoothMoveCount(0);
+      bluetoothMoveCountRef.current = 0;
       setBluetoothProtocol("");
       setBluetoothError("");
       setBluetoothStage("");
@@ -432,8 +488,19 @@ export default function Home() {
       bluetoothSubscription.current = puzzle.events$.subscribe((event) => {
         if (event.type === "MOVE") {
           setBluetoothMove(event.move);
-          setBluetoothMoveCount((count) => count + 1);
+          bluetoothMoveCountRef.current += 1;
+          setBluetoothMoveCount(bluetoothMoveCountRef.current);
           cubeSync.current?.addMove(event.move);
+        } else if (event.type === "FACELETS") {
+          latestFacelets.current = event.facelets;
+          if (practicePhaseRef.current === "solving" && isSolvedFacelets(event.facelets)) {
+            const finalTime = performance.now() - solveStartedAt.current;
+            practicePhaseRef.current = "solved";
+            setPracticePhase("solved");
+            setSolveElapsed(finalTime);
+            setSolveMoves(Math.max(0, bluetoothMoveCountRef.current - solveMoveStart.current));
+            setPracticeMessage("复原完成！");
+          }
         } else if (event.type === "GYRO") {
           cubeSync.current?.setGyro(event.quaternion);
           if (!gyroSeen.current) {
@@ -451,6 +518,7 @@ export default function Home() {
           cubeSync.current?.resetGyro();
         }
       });
+      if (puzzle.capabilities.facelets) void puzzle.sendCommand({ type: "REQUEST_FACELETS" });
       setBluetoothStatus("connected");
       setBluetoothStage("");
     } catch (error) {
@@ -461,6 +529,49 @@ export default function Home() {
       setBluetoothStatus("idle");
     }
   }, [bluetoothStatus]);
+
+  const generateScramble = useCallback(async () => {
+    if (bluetoothStatus !== "connected") {
+      setPracticeMessage("请先连接蓝牙魔方");
+      return;
+    }
+    if (latestFacelets.current && !isSolvedFacelets(latestFacelets.current)) {
+      setPracticeMessage("请先将实体魔方复原，再生成新打乱");
+      return;
+    }
+    setPracticeMessage("正在生成打乱…");
+    try {
+      const { randomScrambleForEvent } = await import("cubing/scramble");
+      const nextScramble = (await randomScrambleForEvent("333")).toString();
+      cubeSync.current?.resetCube();
+      setScramble(nextScramble);
+      setSolveElapsed(0);
+      setSolveMoves(0);
+      practicePhaseRef.current = "scrambling";
+      setPracticePhase("scrambling");
+      setPracticeMessage("按照公式打乱实体魔方，完成后点击开始复原");
+    } catch (error) {
+      setPracticeMessage(error instanceof Error ? error.message : "打乱生成失败，请重试");
+    }
+  }, [bluetoothStatus]);
+
+  const startSmartSolve = useCallback(() => {
+    if (!scramble) {
+      setPracticeMessage("请先生成随机打乱");
+      return;
+    }
+    if (latestFacelets.current && isSolvedFacelets(latestFacelets.current)) {
+      setPracticeMessage("魔方仍是复原状态，请先按公式完成打乱");
+      return;
+    }
+    solveStartedAt.current = performance.now();
+    solveMoveStart.current = bluetoothMoveCountRef.current;
+    practicePhaseRef.current = "solving";
+    setPracticePhase("solving");
+    setSolveElapsed(0);
+    setSolveMoves(0);
+    setPracticeMessage("计时中 · 复原后自动停止");
+  }, [scramble]);
 
   const startTraining = useCallback(() => {
     if (spaceHoldTimer.current !== null) window.clearTimeout(spaceHoldTimer.current);
@@ -610,6 +721,29 @@ export default function Home() {
               </small>
             </span>
           </button>
+          <section className={`smartcube-practice ${practicePhase}`}>
+            <div className="practice-head">
+              <div><span>RANDOM SCRAMBLE</span><b>随机打乱复原</b></div>
+              <strong>{(solveElapsed / 1000).toFixed(2)}<small>s</small></strong>
+            </div>
+            <div className="scramble-text">
+              {scramble || "连接魔方，生成一条 WCA 风格随机打乱"}
+            </div>
+            <p>{practiceMessage}</p>
+            {practicePhase === "solved" && (
+              <div className="solve-complete">
+                <b>✓ 复原完成</b><span>{(solveElapsed / 1000).toFixed(2)} 秒 · {solveMoves} 步</span>
+              </div>
+            )}
+            <div className="practice-actions">
+              <button type="button" onClick={generateScramble} disabled={practicePhase === "solving"}>
+                {scramble ? "换一个打乱" : "生成随机打乱"}
+              </button>
+              <button type="button" className="primary" onClick={startSmartSolve} disabled={practicePhase !== "scrambling"}>
+                开始复原
+              </button>
+            </div>
+          </section>
         </section>
       </main>
     );

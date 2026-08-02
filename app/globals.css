@@ -98,6 +98,13 @@ footer i { width:3px; height:3px; background:#aaa; border-radius:50%; }
 .smartcube-connect { width:min(390px,100%); min-height:64px; margin:auto; display:flex; align-items:center; gap:13px; padding:12px 16px; border:1px solid #cfd0ca; border-radius:12px; background:#15181b; color:#fff; text-align:left; cursor:pointer; }
 .smartcube-connect > i { flex:0 0 auto; width:10px; height:10px; border-radius:50%; background:#9da09d; box-shadow:0 0 0 5px #fff1; }.smartcube-connect > span { display:flex; min-width:0; flex-direction:column; gap:4px; }.smartcube-connect b { overflow:hidden; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }.smartcube-connect small { overflow:hidden; color:#aaa; font-size:8px; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
 .smartcube-connect.connected { color:#12613d; border-color:#70af91; background:#e9f6ef; }.smartcube-connect.connected > i { background:#18a05e; box-shadow:0 0 0 5px #18a05e22; }.smartcube-connect.connected small { color:#527765; }
+.smartcube-practice { width:min(470px,100%); margin:14px auto 0; padding:16px; border:1px solid #d4d5cf; border-radius:14px; background:#faf9f4; text-align:left; }
+.practice-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }.practice-head > div { display:flex; flex-direction:column; gap:3px; }.practice-head span { color:#176b4a; font-size:7px; font-weight:800; letter-spacing:1.5px; }.practice-head b { font-size:13px; }.practice-head strong { font-size:26px; font-variant-numeric:tabular-nums; letter-spacing:-1px; }.practice-head strong small { margin-left:2px; color:var(--muted); font-size:9px; }
+.scramble-text { min-height:64px; display:flex; align-items:center; margin-top:11px; padding:12px 14px; border-radius:8px; background:#ecebe5; color:#252a26; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:14px; font-weight:700; line-height:1.65; letter-spacing:.3px; }
+.smartcube-practice > p { min-height:14px; margin:8px 1px 0; color:var(--muted); font-size:9px; line-height:1.45; }
+.practice-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:11px; }.practice-actions button { min-height:40px; border:1px solid #cfd0ca; border-radius:8px; background:#fff; color:var(--ink); font-size:10px; font-weight:800; cursor:pointer; }.practice-actions button.primary { border-color:#15181b; background:#15181b; color:#fff; }.practice-actions button:disabled { cursor:not-allowed; opacity:.35; }
+.solve-complete { display:flex; align-items:center; justify-content:space-between; margin-top:9px; padding:10px 12px; border-radius:8px; background:#e5f5eb; color:#12613d; }.solve-complete b { font-size:11px; }.solve-complete span { font-size:9px; font-variant-numeric:tabular-nums; }
+.smartcube-practice.solving .practice-head strong { color:#176b4a; }.smartcube-practice.solved { border-color:#70af91; box-shadow:0 8px 24px #176b4a14; }
 @media (max-width:950px) {
   .header-actions { margin-right:12px; }.guide-download { padding:8px 10px; font-size:10px; }.guide-download span { display:none; }
   .workspace { grid-template-columns:150px 1fr; }.answer-panel { grid-column:1 / -1; width:min(620px,100%); justify-self:center; }.controls { grid-row:1; }.quiz-area { grid-row:1; }.auf-grid { grid-template-columns:1fr 1fr; }
@@ -146,6 +153,7 @@ footer i { width:3px; height:3px; background:#aaa; border-radius:50%; }
   .smartcube-page .cube-stage { width:min(310px,88vw); height:270px; margin-top:-2px; }.smartcube-page .twisty-host { height:245px; }
   .smartcube-colors { gap:5px; margin-top:-1px; margin-bottom:9px; }.smartcube-colors button { grid-template-columns:13px 1fr; column-gap:5px; padding:7px 8px; }.smartcube-colors i { width:12px; height:12px; }
   .smartcube-connect { min-height:57px; padding:10px 13px; border-radius:10px; }
+  .smartcube-practice { margin-top:10px; padding:12px; border-radius:11px; }.scramble-text { min-height:56px; margin-top:8px; padding:9px 11px; font-size:12px; }.practice-head strong { font-size:22px; }.practice-actions { margin-top:8px; }.practice-actions button { min-height:38px; }
 }
 @media (max-width:650px) and (max-height:760px) {
   .topbar { height:54px; }.brand-logo { width:30px; height:30px; }.stats div { width:66px; }
